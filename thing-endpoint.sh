@@ -1,0 +1,1 @@
+aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS
