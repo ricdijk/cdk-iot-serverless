@@ -280,28 +280,28 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
 
 	const athenaTable = new glue.Table(this, preFix+'IoTDatabaseTable', {
 			database:	rdiGlueDatabase,
-		    tableName: 	tableName,
+		  tableName: 	tableName,
 			bucket: 	rdiBucket,
- 		    columns:
- 		    [
-        		{ name: 'humidity',         			type: glue.Schema.DOUBLE },
-        		{ name: 'temperature',     				type: glue.Schema.DOUBLE },
-        		{ name: 'pressure',       				type: glue.Schema.DOUBLE },
-        		{ name: 'acceleration',    				type: glue.Schema.DOUBLE },
-        		{ name: 'acceleration_x',   			type: glue.Schema.DOUBLE },
-        		{ name: 'acceleration_y',   			type: glue.Schema.DOUBLE },
-        		{ name: 'acceleration_z',   			type: glue.Schema.DOUBLE },
-        		{ name: 'tx_power', 	    			type: glue.Schema.DOUBLE },
-        		{ name: 'movement_counter', 			type: glue.Schema.DOUBLE },
-        		{ name: 'measurement_sequence_number', 	type: glue.Schema.DOUBLE },
-        		{ name: 'mac',              			type: glue.Schema.STRING },
-       			{ name: 'timestamp2',       			type: glue.Schema.TIMESTAMP }
-      		],
-      		dataFormat: glue.DataFormat.JSON,
-      		compressed: false,
-      		description: 'Generic IoT data',
-      		partitionKeys: [],
-      		s3Prefix: ''
+ 		  columns:
+		  [
+      		{ name: 'humidity',         			      type: glue.Schema.DOUBLE },
+      		{ name: 'temperature',     				      type: glue.Schema.DOUBLE },
+      		{ name: 'pressure',       				      type: glue.Schema.DOUBLE },
+      		{ name: 'acceleration',    				      type: glue.Schema.DOUBLE },
+      		{ name: 'acceleration_x',   		      	type: glue.Schema.DOUBLE },
+      		{ name: 'acceleration_y',         			type: glue.Schema.DOUBLE },
+      		{ name: 'acceleration_z',   			      type: glue.Schema.DOUBLE },
+      		{ name: 'tx_power', 	    	      		  type: glue.Schema.DOUBLE },
+      		{ name: 'movement_counter', 			      type: glue.Schema.DOUBLE },
+      		{ name: 'measurement_sequence_number', 	type: glue.Schema.DOUBLE },
+          { name: 'timestamp2',      			        type: glue.Schema.TIMESTAMP }
+    	],
+    	dataFormat: glue.DataFormat.JSON,
+    	compressed: false,
+    	description: 'Generic IoT data',
+    	partitionKeys: [],
+//    	partitionKeys: [{ name: 'timestamp',       			type: glue.Schema.STRING }],
+    	s3Prefix: ''
 
     });
 
