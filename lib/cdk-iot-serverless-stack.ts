@@ -39,12 +39,21 @@ export class CdkStack extends cdk.Stack {
     super(scope, id, props);
 
 //-------------- Basics ---------------
-    // S3 bucket
-    const rdiBucket = new s3.Bucket(this, preFix+'Bucket', {
-    versioned: true,
-    removalPolicy: cdk.RemovalPolicy.DESTROY,
-    bucketName:  bucketName
-	});
+var rdiBucket;
+if (settings.newBucket)
+{
+    // create S3 bucket
+  rdiBucket = new s3.Bucket(this, preFix+'Bucket', {
+      versioned: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      bucketName:  bucketName
+  });
+}
+else { //use existing bucet
+  rdiBucket = s3.Bucket.fromBucketAttributes(this, preFix+'ImportedBucket', {
+      bucketArn: 'arn:aws:s3:::'+bucketName
+    });
+}
 
 
 //-------------- Thing ---------------
