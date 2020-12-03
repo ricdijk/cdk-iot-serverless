@@ -1,0 +1,39 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const ProcessorLocal_1 = require("./ProcessorLocal");
+const Converter_1 = require("./Converter");
+const fs_1 = require("fs");
+const path_1 = require("path");
+const assert_1 = require("assert");
+const dataDir = path_1.default.join(__dirname, "../test/data/");
+describe("ProcessLocal", () => {
+    it("should process csv chunks and output json", async function () {
+        const processor = new ProcessorLocal_1.ProcessorLocal(new Converter_1.Converter());
+        const data = fs_1.readFileSync(dataDir + "/complexJSONCSV");
+        const lines = await processor.process(data);
+        assert_1.default(lines.length === 2);
+        const line0 = lines[0];
+        assert_1.default.equal(line0.fieldA.title, "Food Factory");
+        assert_1.default.equal(line0.fieldA.children.length, 2);
+        assert_1.default.equal(line0.fieldA.children[1].employee[0].name, "Tim");
+    });
+    it("should process csv chunks and output csv rows", async function () {
+        const processor = new ProcessorLocal_1.ProcessorLocal(new Converter_1.Converter({ output: "line" }));
+        const data = fs_1.readFileSync(dataDir + "/complexJSONCSV");
+        const lines = await processor.process(data);
+        assert_1.default(lines.length === 2);
+    });
+    it("should return empty array if preRawHook removed the data", () => {
+        const conv = new Converter_1.Converter();
+        conv.preRawData((str) => {
+            return "";
+        });
+        const processor = new ProcessorLocal_1.ProcessorLocal(conv);
+        const data = fs_1.readFileSync(dataDir + "/complexJSONCSV");
+        return processor.process(data)
+            .then((list) => {
+            assert_1.default.equal(list.length, 0);
+        });
+    });
+});
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiUHJvY2Vzc29yTG9jYWwudGVzdC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIlByb2Nlc3NvckxvY2FsLnRlc3QudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxxREFBZ0Q7QUFDaEQsMkNBQXdDO0FBRXhDLDJCQUFnQztBQUNoQywrQkFBd0I7QUFDeEIsbUNBQTRCO0FBRTVCLE1BQU0sT0FBTyxHQUFDLGNBQUksQ0FBQyxJQUFJLENBQUMsU0FBUyxFQUFDLGVBQWUsQ0FBQyxDQUFDO0FBQ25ELFFBQVEsQ0FBQyxjQUFjLEVBQUMsR0FBRSxFQUFFO0lBQzFCLEVBQUUsQ0FBRSwyQ0FBMkMsRUFBQyxLQUFLO1FBQ25ELE1BQU0sU0FBUyxHQUFDLElBQUksK0JBQWMsQ0FBQyxJQUFJLHFCQUFTLEVBQUUsQ0FBQyxDQUFDO1FBQ3BELE1BQU0sSUFBSSxHQUFDLGlCQUFZLENBQUMsT0FBTyxHQUFDLGlCQUFpQixDQUFDLENBQUM7UUFDbkQsTUFBTSxLQUFLLEdBQUMsTUFBTSxTQUFTLENBQUMsT0FBTyxDQUFDLElBQUksQ0FBQyxDQUFDO1FBQzFDLGdCQUFNLENBQUMsS0FBSyxDQUFDLE1BQU0sS0FBSyxDQUFDLENBQUMsQ0FBQztRQUMzQixNQUFNLEtBQUssR0FBQyxLQUFLLENBQUMsQ0FBQyxDQUFlLENBQUM7UUFDbkMsZ0JBQU0sQ0FBQyxLQUFLLENBQUMsS0FBSyxDQUFDLE1BQU0sQ0FBQyxLQUFLLEVBQUMsY0FBYyxDQUFDLENBQUM7UUFDaEQsZ0JBQU0sQ0FBQyxLQUFLLENBQUMsS0FBSyxDQUFDLE1BQU0sQ0FBQyxRQUFRLENBQUMsTUFBTSxFQUFDLENBQUMsQ0FBQyxDQUFDO1FBQzdDLGdCQUFNLENBQUMsS0FBSyxDQUFDLEtBQUssQ0FBQyxNQUFNLENBQUMsUUFBUSxDQUFDLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLENBQUMsQ0FBQyxJQUFJLEVBQUMsS0FBSyxDQUFDLENBQUM7SUFDaEUsQ0FBQyxDQUFDLENBQUE7SUFDRixFQUFFLENBQUUsK0NBQStDLEVBQUMsS0FBSztRQUN2RCxNQUFNLFNBQVMsR0FBQyxJQUFJLCtCQUFjLENBQUMsSUFBSSxxQkFBUyxDQUFDLEVBQUMsTUFBTSxFQUFDLE1BQU0sRUFBQyxDQUFDLENBQUMsQ0FBQztRQUNuRSxNQUFNLElBQUksR0FBQyxpQkFBWSxDQUFDLE9BQU8sR0FBQyxpQkFBaUIsQ0FBQyxDQUFDO1FBQ25ELE1BQU0sS0FBSyxHQUFDLE1BQU0sU0FBUyxDQUFDLE9BQU8sQ0FBQyxJQUFJLENBQUMsQ0FBQztRQUUxQyxnQkFBTSxDQUFDLEtBQUssQ0FBQyxNQUFNLEtBQUssQ0FBQyxDQUFDLENBQUM7SUFDN0IsQ0FBQyxDQUFDLENBQUE7SUFDRixFQUFFLENBQUUsMERBQTBELEVBQUMsR0FBRSxFQUFFO1FBQ2pFLE1BQU0sSUFBSSxHQUFDLElBQUkscUJBQVMsRUFBRSxDQUFDO1FBQzNCLElBQUksQ0FBQyxVQUFVLENBQUMsQ0FBQyxHQUFHLEVBQUMsRUFBRTtZQUNyQixPQUFPLEVBQUUsQ0FBQztRQUNaLENBQUMsQ0FBQyxDQUFDO1FBQ0gsTUFBTSxTQUFTLEdBQUMsSUFBSSwrQkFBYyxDQUFDLElBQUksQ0FBQyxDQUFDO1FBQ3pDLE1BQU0sSUFBSSxHQUFDLGlCQUFZLENBQUMsT0FBTyxHQUFDLGlCQUFpQixDQUFDLENBQUM7UUFDbkQsT0FBTyxTQUFTLENBQUMsT0FBTyxDQUFDLElBQUksQ0FBQzthQUM3QixJQUFJLENBQUMsQ0FBQyxJQUFJLEVBQUMsRUFBRTtZQUNaLGdCQUFNLENBQUMsS0FBSyxDQUFDLElBQUksQ0FBQyxNQUFNLEVBQUMsQ0FBQyxDQUFDLENBQUM7UUFDOUIsQ0FBQyxDQUFDLENBQUE7SUFDSixDQUFDLENBQUMsQ0FBQTtBQUNKLENBQUMsQ0FBQyxDQUFBIiwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHtQcm9jZXNzb3JMb2NhbH0gZnJvbSBcIi4vUHJvY2Vzc29yTG9jYWxcIjtcbmltcG9ydCB7IENvbnZlcnRlciB9IGZyb20gXCIuL0NvbnZlcnRlclwiO1xuaW1wb3J0IFAgZnJvbSBcImJsdWViaXJkXCI7XG5pbXBvcnQge3JlYWRGaWxlU3luY30gZnJvbSBcImZzXCI7XG5pbXBvcnQgcGF0aCBmcm9tIFwicGF0aFwiO1xuaW1wb3J0IGFzc2VydCBmcm9tIFwiYXNzZXJ0XCI7XG5pbXBvcnQgeyBKU09OUmVzdWx0IH0gZnJvbSBcIi4vbGluZVRvSnNvblwiO1xuY29uc3QgZGF0YURpcj1wYXRoLmpvaW4oX19kaXJuYW1lLFwiLi4vdGVzdC9kYXRhL1wiKTtcbmRlc2NyaWJlKFwiUHJvY2Vzc0xvY2FsXCIsKCk9PntcbiAgaXQgKFwic2hvdWxkIHByb2Nlc3MgY3N2IGNodW5rcyBhbmQgb3V0cHV0IGpzb25cIixhc3luYyBmdW5jdGlvbiAoKXtcbiAgICBjb25zdCBwcm9jZXNzb3I9bmV3IFByb2Nlc3NvckxvY2FsKG5ldyBDb252ZXJ0ZXIoKSk7XG4gICAgY29uc3QgZGF0YT1yZWFkRmlsZVN5bmMoZGF0YURpcitcIi9jb21wbGV4SlNPTkNTVlwiKTtcbiAgICBjb25zdCBsaW5lcz1hd2FpdCBwcm9jZXNzb3IucHJvY2VzcyhkYXRhKTtcbiAgICBhc3NlcnQobGluZXMubGVuZ3RoID09PSAyKTtcbiAgICBjb25zdCBsaW5lMD1saW5lc1swXSBhcyBKU09OUmVzdWx0O1xuICAgIGFzc2VydC5lcXVhbChsaW5lMC5maWVsZEEudGl0bGUsXCJGb29kIEZhY3RvcnlcIik7XG4gICAgYXNzZXJ0LmVxdWFsKGxpbmUwLmZpZWxkQS5jaGlsZHJlbi5sZW5ndGgsMik7XG4gICAgYXNzZXJ0LmVxdWFsKGxpbmUwLmZpZWxkQS5jaGlsZHJlblsxXS5lbXBsb3llZVswXS5uYW1lLFwiVGltXCIpO1xuICB9KVxuICBpdCAoXCJzaG91bGQgcHJvY2VzcyBjc3YgY2h1bmtzIGFuZCBvdXRwdXQgY3N2IHJvd3NcIixhc3luYyBmdW5jdGlvbiAoKXtcbiAgICBjb25zdCBwcm9jZXNzb3I9bmV3IFByb2Nlc3NvckxvY2FsKG5ldyBDb252ZXJ0ZXIoe291dHB1dDpcImxpbmVcIn0pKTtcbiAgICBjb25zdCBkYXRhPXJlYWRGaWxlU3luYyhkYXRhRGlyK1wiL2NvbXBsZXhKU09OQ1NWXCIpO1xuICAgIGNvbnN0IGxpbmVzPWF3YWl0IHByb2Nlc3Nvci5wcm9jZXNzKGRhdGEpO1xuICAgIFxuICAgIGFzc2VydChsaW5lcy5sZW5ndGggPT09IDIpO1xuICB9KVxuICBpdCAoXCJzaG91bGQgcmV0dXJuIGVtcHR5IGFycmF5IGlmIHByZVJhd0hvb2sgcmVtb3ZlZCB0aGUgZGF0YVwiLCgpPT57XG4gICAgY29uc3QgY29udj1uZXcgQ29udmVydGVyKCk7XG4gICAgY29udi5wcmVSYXdEYXRhKChzdHIpPT57XG4gICAgICByZXR1cm4gXCJcIjtcbiAgICB9KTtcbiAgICBjb25zdCBwcm9jZXNzb3I9bmV3IFByb2Nlc3NvckxvY2FsKGNvbnYpO1xuICAgIGNvbnN0IGRhdGE9cmVhZEZpbGVTeW5jKGRhdGFEaXIrXCIvY29tcGxleEpTT05DU1ZcIik7XG4gICAgcmV0dXJuIHByb2Nlc3Nvci5wcm9jZXNzKGRhdGEpXG4gICAgLnRoZW4oKGxpc3QpPT57XG4gICAgICBhc3NlcnQuZXF1YWwobGlzdC5sZW5ndGgsMCk7XG4gICAgfSlcbiAgfSlcbn0pXG5cbiJdfQ==
