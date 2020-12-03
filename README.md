@@ -37,6 +37,7 @@ Deploying IoT Serverless Stack for:
 Account:        xxxxxxxxxxxx
 Region:         us-east-2
 Prefix:         rdicdk
+New Bucket:     true
 Thing Endpoint: xxxxxxxxxxxxxx-ats.iot.eu-west-1.amazonaws.com
 ----------------------------------------------------------------------------------------------------
 ```

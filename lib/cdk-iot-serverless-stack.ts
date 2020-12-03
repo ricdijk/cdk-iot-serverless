@@ -48,11 +48,14 @@ if (settings.newBucket)
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       bucketName:  bucketName
   });
+  console.log('Created Bucket')
 }
 else { //use existing bucet
   rdiBucket = s3.Bucket.fromBucketAttributes(this, preFix+'ImportedBucket', {
       bucketArn: 'arn:aws:s3:::'+bucketName
     });
+    console.log('Reused Bucket')
+
 }
 
 
@@ -371,6 +374,7 @@ exec('aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS',
         console.log('Account:        ' + settings.accountId);
         console.log('Region:         ' + settings.regionName);
         console.log('Prefix:         ' + settings.prefix);
+        console.log('New Bucket:     ' + settings.newBucket);
         console.log('Thing Endpoint: ' + stdout);
         console.log('----------------------------------------------------------------------------------------------------');
         if (error !== null) {
