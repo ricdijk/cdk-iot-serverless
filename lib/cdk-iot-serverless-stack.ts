@@ -31,7 +31,7 @@ import { PolicyStatement } from "@aws-cdk/aws-iam";
 
 //stack
 export class CdkStack extends cdk.Stack {
-  public readonly rdiWebsiteEndpoint: cdk.CfnOutput;
+  public readonly rdiCertificateId: cdk.CfnOutput;
 
 
   //constructor
@@ -48,14 +48,11 @@ if (settings.newBucket)
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       bucketName:  bucketName
   });
-  console.log('Created Bucket')
 }
 else { //use existing bucet
   rdiBucket = s3.Bucket.fromBucketAttributes(this, preFix+'ImportedBucket', {
       bucketArn: 'arn:aws:s3:::'+bucketName
     });
-    console.log('Reused Bucket')
-
 }
 
 
@@ -108,30 +105,31 @@ else { //use existing bucet
 		// =========== End Policy ***************/
 	});
 
-	const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
-		status:						'ACTIVE',
-		certificateMode:			'SNI_ONLY',
-		certificatePem:				`-----BEGIN CERTIFICATE-----
-MIIDWTCCAkGgAwIBAgIUXXEr5cx7TsKmsblm6sZFoDpCwakwDQYJKoZIhvcNAQEL
-BQAwTTFLMEkGA1UECwxCQW1hem9uIFdlYiBTZXJ2aWNlcyBPPUFtYXpvbi5jb20g
-SW5jLiBMPVNlYXR0bGUgU1Q9V2FzaGluZ3RvbiBDPVVTMB4XDTIwMTEyNTEyNDAx
-NFoXDTQ5MTIzMTIzNTk1OVowHjEcMBoGA1UEAwwTQVdTIElvVCBDZXJ0aWZpY2F0
-ZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMFpG5kiZpPONEuePxR/
-h4rG6nbCGFVU8XBs0BrkrjiA2DXOdwm8O/3ZL4gcD0XU+kcqznOP85r9+/F9cG/2
-KWmtFzx/v7e2AhW0BaYVX31X40KS+T/l9dUPN62Vxryt/N+45eAplK3k4wi+IVEm
-LcAtgwHxDnruHacyzC8QCcrefidJRIz9/4kr5PCC8PQKYWjErxzg77UTNPffyocz
-9tH7DY8anQ3DT5JOll3DnqaTZelHFtWukFD6NoAM/FD/fO/vzBPvkFJMwMh6nlB0
-Qm1103TJKh1TSXpf/IfxX3E8xRXuq0yetfJLHeNXZqHe+ElfCYfbEE2UzEQbjhtS
-mp0CAwEAAaNgMF4wHwYDVR0jBBgwFoAUxbe/4eq2LAllh9kvA9ZiwcXdeK4wHQYD
-VR0OBBYEFNG6SmyFV1fY4boV4kx+gwNDjlclMAwGA1UdEwEB/wQCMAAwDgYDVR0P
-AQH/BAQDAgeAMA0GCSqGSIb3DQEBCwUAA4IBAQAUMq9N93L+tYJeBbkFwS6GXLOX
-6dBlEcmMJdCI7Oyde/+yNGAbdDPc4/IX6efyRyRtc/4DLgpGUUBbdWqqWzihdWPC
-IteW/kutnRj1baJnK7lroHyq034ukgcSalFyvU7oNihnYk7TVrtkeFBLY9pAGswl
-DBzPMyTZ+Skp4XvlG1BPbqvUl3P+JW5KVhDbndJcHKMf6mai4+bxRqcCGRZDwJ6Y
-zYkPCqFyERLQBwkE+im8CagboV25TvtBX2l2IPbO5Jo2vNy2pY7i3mR+9/9NZLw+
-K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
------END CERTIFICATE-----`
-	});
+//==================================================================================================================
+  var forge = require('node-forge');
+  var pki = forge.pki;
+
+  // generate a keypair or use one you have already
+  var keys = pki.rsa.generateKeyPair(2048);
+  var csr = forge.pki.createCertificationRequest();
+  csr.publicKey = keys.publicKey;
+  csr.setSubject([{
+    name: 'commonName',
+    value: 'AWS IoT Certificate'
+  }]);
+
+// sign certification req uest
+  csr.sign(keys.privateKey);
+  var pem = forge.pki.certificationRequestToPem(csr);
+
+//==================================================================================================================
+const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
+  status:						    'ACTIVE',
+  certificateMode:			'DEFAULT',
+  certificateSigningRequest:				pem
+});
+
+//==================================================================================================================
 
 
 	// bind principle to policy
@@ -360,8 +358,8 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
 
 // -------------- Display Thing Endpoint ------------
    //store endpoint
-    this.rdiWebsiteEndpoint = new cdk.CfnOutput(this, 'GatewayUrl', {
-      value: rdiGateway.url
+    this.rdiCertificateId = new cdk.CfnOutput(this, 'CERTIFICATEID', {
+      value: rdiCerificate.ref
     });
 
 // Thing Url only via cli command. Is Async, cant/dont know how to put it in stack output
@@ -376,6 +374,18 @@ exec('aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS',
         console.log('Prefix:         ' + settings.prefix);
         console.log('New Bucket:     ' + settings.newBucket);
         console.log('Thing Endpoint: ' + stdout);
+        console.log('');
+        console.log('====================================================================================================');
+        console.log('Retrieve Certificat width:')
+        console.log('aws iot describe-certificate --certificate-id $CERTIFICATEID --query "certificateDescription.certificatePem" --output text')
+        console.log('====================================================================================================');
+        console.log('----------------------------------------------------------------------------------------------------');
+//        console.log('CSR Pem:');
+//        console.log(pem);
+        console.log('Private Key:');
+        console.log( pki.privateKeyToPem(keys.privateKey));
+//        console.log('Public Key:');
+//        console.log( pki.publicKeyToPem(keys.publicKey));
         console.log('----------------------------------------------------------------------------------------------------');
         if (error !== null) {
              console.log('exec error: ' + error);
