@@ -18,6 +18,11 @@ var deleveryStreamName = preFix + 'DeliveryStreamRuuviS3'
 var websiteHandlerName = preFix + '-websiteHandler'
 var arnEnv             = regionName + ":" + accountID;
 
+var fileNameCsr = 'cert/' + thingId  + '-csr.csr';
+var fileNamePublic = 'cert/' + thingId  + '-public.key';
+var fileNamePrivate = 'cert/' + thingId  + '-private.key';
+
+
 //imports
 import * as cdk       from '@aws-cdk/core';
 import * as lambda    from '@aws-cdk/aws-lambda';
@@ -108,12 +113,22 @@ else { //use existing bucet
 	});
 
 //===== Certificate =============================================================================================================
-  if (settings.newSecret)
-  {
+  const fs = require('fs');
+  var csr;
+  var keyPrivate:string;
+  var keyPublic:string;
 
+  if (fs.existsSync(fileNameCsr))
+  {
+    console.log('Read CSR from Storage.')
+    csr        = fs.readFileSync(fileNameCsr).toString();
+    keyPrivate = fs.readFileSync(fileNamePrivate).toString() ;
+    keyPublic  = fs.readFileSync(fileNamePublic).toString() ;
   }
   else
   {
+
+    console.log('generating key')
     var forge = require('node-forge');
     var pki = forge.pki;
 
@@ -128,19 +143,29 @@ else { //use existing bucet
 
   // sign certification req uest
     csr.sign(keys.privateKey);
-    var pem = forge.pki.certificationRequestToPem(csr);
+    csr = forge.pki.certificationRequestToPem(csr);
+    keyPrivate = pki.privateKeyToPem(keys.privateKey)
+    keyPublic  = pki.publicKeyToPem(keys.publicKey)
 
-    const fs = require('fs');
-    var fileName = 'cert/' + thingId  + 'csr.crt';
-    fs.writeFile(fileName, pem,  function(err:any) {
+    fs.writeFile(fileNameCsr, csr,  function(err:any) {
                 if (err) {
                     return console.error('Creation of output file failed: '+ err +'\n\nCSR could not be saved');
                 }
             });
+    fs.writeFile(fileNamePrivate, keyPrivate,  function(err:any) {
+                if (err) {
+                    return console.error('Creation of output file failed: '+ err +'\n\nPrivate Key could not be saved');
+                }
+            });
+    fs.writeFile(fileNamePublic, keyPublic,  function(err:any) {
+                if (err) {
+                    return console.error('Creation of output file failed: '+ err +'\n\nPrivate Key could not be saved');
+                }
+            });
 
-
-
-    //store csr pem in secretmanager
+// Certificat manager api of cdk can not be used to store certificates, because of security restriction
+// Can bo solved by 'overerving', but cant get taht to work. see below
+    //store csr csrin secretmanager
 //    var secretString=JSON.stringify({"csr": pem, "Keys": keys})
 //    const secret = new secretsmanager.CfnSecret(this, preFix+'Secret', {
 //      description:    'CSR PEM for IoTcode',
@@ -160,7 +185,7 @@ else { //use existing bucet
 const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
   status:						    'ACTIVE',
   certificateMode:			'DEFAULT',
-  certificateSigningRequest:				pem
+  certificateSigningRequest:				csr
 });
 
 //==================================================================================================================
@@ -402,25 +427,23 @@ exec('aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS',
     function (error:any, stdout:any, stderr:any) {
         console.log('----------------------------------------------------------------------------------------------------');
         console.log('Deploying IoT Serverless Stack for:');
-        console.log('');
         console.log('Account:        ' + settings.accountId);
         console.log('Region:         ' + settings.regionName);
         console.log('Prefix:         ' + settings.prefix);
         console.log('New Bucket:     ' + settings.newBucket);
-        console.log('Thing Endpoint: ' + stdout);
-        console.log('');
-        console.log('====================================================================================================');
+        console.log('Thing Endpoint: ' + stdout.slice(0,-1));
+        console.log('--------------------------------------------------------------------------------------------------------------');
+//        console.log('CSR Pem:');
+//        console.log(csr);
+        console.log('Private Key (to be used with Ruuvi):\n');
+        console.log( keyPrivate);
+//        console.log('Public Key:');
+//        console.log( keyPublic );
+        console.log('=============================================================================================================================');
         console.log('Retrieve Certificat width:')
         console.log('aws iot describe-certificate --certificate-id $CERTIFICATEID --query "certificateDescription.certificatePem" --output text')
-        console.log('====================================================================================================');
-        console.log('----------------------------------------------------------------------------------------------------');
-//        console.log('CSR Pem:');
-//        console.log(pem);
-        console.log('Private Key:');
-        console.log( pki.privateKeyToPem(keys.privateKey));
-//        console.log('Public Key:');
-//        console.log( pki.publicKeyToPem(keys.publicKey));
-        console.log('----------------------------------------------------------------------------------------------------');
+        console.log('=============================================================================================================================');
+
         if (error !== null) {
              console.log('exec error: ' + error);
         }
