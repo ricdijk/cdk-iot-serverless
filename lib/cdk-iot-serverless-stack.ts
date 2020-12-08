@@ -19,15 +19,17 @@ var websiteHandlerName = preFix + '-websiteHandler'
 var arnEnv             = regionName + ":" + accountID;
 
 //imports
-import * as cdk      from '@aws-cdk/core';
-import * as lambda   from '@aws-cdk/aws-lambda';
-import * as s3       from '@aws-cdk/aws-s3';
-import * as apigw    from '@aws-cdk/aws-apigateway';
-import * as glue     from '@aws-cdk/aws-glue';
-import * as iot      from '@aws-cdk/aws-iot';
-import * as iam      from '@aws-cdk/aws-iam';
-import * as firehose from '@aws-cdk/aws-kinesisfirehose';
+import * as cdk       from '@aws-cdk/core';
+import * as lambda    from '@aws-cdk/aws-lambda';
+import * as s3        from '@aws-cdk/aws-s3';
+import * as apigw     from '@aws-cdk/aws-apigateway';
+import * as glue      from '@aws-cdk/aws-glue';
+import * as iot       from '@aws-cdk/aws-iot';
+import * as iam       from '@aws-cdk/aws-iam';
+import * as firehose  from '@aws-cdk/aws-kinesisfirehose';
+import * as secretsmanager from '@aws-cdk/aws-secretsmanager';
 import { PolicyStatement } from "@aws-cdk/aws-iam";
+import { Construct } from 'constructs';
 
 //stack
 export class CdkStack extends cdk.Stack {
@@ -105,22 +107,54 @@ else { //use existing bucet
 		// =========== End Policy ***************/
 	});
 
+//===== Certificate =============================================================================================================
+  if (settings.newSecret)
+  {
+
+  }
+  else
+  {
+    var forge = require('node-forge');
+    var pki = forge.pki;
+
+    // generate a keypair or use one you have already
+    var keys = pki.rsa.generateKeyPair(2048);
+    var csr = forge.pki.createCertificationRequest();
+    csr.publicKey = keys.publicKey;
+    csr.setSubject([{
+      name: 'commonName',
+      value: 'AWS IoT Certificate'
+    }]);
+
+  // sign certification req uest
+    csr.sign(keys.privateKey);
+    var pem = forge.pki.certificationRequestToPem(csr);
+
+    const fs = require('fs');
+    var fileName = 'cert/' + thingId  + 'csr.crt';
+    fs.writeFile(fileName, pem,  function(err:any) {
+                if (err) {
+                    return console.error('Creation of output file failed: '+ err +'\n\nCSR could not be saved');
+                }
+            });
+
+
+
+    //store csr pem in secretmanager
+//    var secretString=JSON.stringify({"csr": pem, "Keys": keys})
+//    const secret = new secretsmanager.CfnSecret(this, preFix+'Secret', {
+//      description:    'CSR PEM for IoTcode',
+//      removalPolicy:  cdk.RemovalPolicy.DESTROY,
+//      secretName:     preFix + 'CSR',
+//    });
+//  var secretString=JSON.stringify({"csr": pem, "Keys": keys})
+//  const secret = new secretsmanager.Secret(this, preFix + 'Secret');
+//  const cfnSecret = secret.construct.defaultChild as secretsmanager.CfnSecret;
+//  cfnSecret.generateSecretString = undefined;
+//  cfnSecret.secretString = secretString;
+}
 //==================================================================================================================
-  var forge = require('node-forge');
-  var pki = forge.pki;
 
-  // generate a keypair or use one you have already
-  var keys = pki.rsa.generateKeyPair(2048);
-  var csr = forge.pki.createCertificationRequest();
-  csr.publicKey = keys.publicKey;
-  csr.setSubject([{
-    name: 'commonName',
-    value: 'AWS IoT Certificate'
-  }]);
-
-// sign certification req uest
-  csr.sign(keys.privateKey);
-  var pem = forge.pki.certificationRequestToPem(csr);
 
 //==================================================================================================================
 const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
