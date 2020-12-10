@@ -1,22 +1,19 @@
 // Environment
-const settings = require('../settings.json') ;
-const accountID          = settings.accountId;
-const regionName         = settings.regionName;
-const preFix             = settings.prefix;
+const settings = require('../settings.json') ;;
 
 //global vars
-var thingId            = preFix + '-ruuvi'
-var bucketName         = preFix + '-bucket'
-var policyName         = preFix + '-policy'
-var databaseName       = preFix + '-database'
+var thingId            = settings.prefix + '-ruuvi'
+var bucketName         = settings.prefix + '-bucket'
+var policyName         = settings.prefix + '-policy'
+var databaseName       = settings.prefix + '-database'
 var tableName          = 'generic'
-var firehoseName       = preFix + 'FirehoseRole'
-var streamName         = preFix + 'DeliveryStreamRuuviS3'
-var topicRuleName      = preFix + 'rule'
-var topicRuleRoleName  = preFix + 'TopicRuleRole'
-var deleveryStreamName = preFix + 'DeliveryStreamRuuviS3'
-var websiteHandlerName = preFix + '-websiteHandler'
-var arnEnv             = regionName + ":" + accountID;
+var firehoseName       = settings.prefix + 'FirehoseRole'
+var streamName         = settings.prefix + 'DeliveryStreamRuuviS3'
+var topicRuleName      = settings.prefix + 'rule'
+var topicRuleRoleName  = settings.prefix + 'TopicRuleRole'
+var deleveryStreamName = settings.prefix + 'DeliveryStreamRuuviS3'
+var websiteHandlerName = settings.prefix + '-websiteHandler'
+var arnEnv             = settings.regionName + ":" + settings.accountId;
 
 var fileNameCsr = 'cert/' + thingId  + '-csr.csr';
 var fileNamePublic = 'cert/' + thingId  + '-public.key';
@@ -40,24 +37,26 @@ import { Construct } from 'constructs';
 export class CdkStack extends cdk.Stack {
   public readonly rdiCertificateId: cdk.CfnOutput;
 
-
   //constructor
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+  console.clear();
+  console.log('-- Start -------------------------------------------------------------------------------------------');
+
 
 //-------------- Basics ---------------
 var rdiBucket;
 if (settings.newBucket)
 {
     // create S3 bucket
-  rdiBucket = new s3.Bucket(this, preFix+'Bucket', {
+  rdiBucket = new s3.Bucket(this, settings.prefix+'Bucket', {
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       bucketName:  bucketName
   });
 }
 else { //use existing bucet
-  rdiBucket = s3.Bucket.fromBucketAttributes(this, preFix+'ImportedBucket', {
+  rdiBucket = s3.Bucket.fromBucketAttributes(this, settings.preFix+'ImportedBucket', {
       bucketArn: 'arn:aws:s3:::'+bucketName
     });
 }
@@ -65,14 +64,14 @@ else { //use existing bucet
 
 //-------------- Thing ---------------
 	//IotCore - thing
-	const rdiThing = new iot.CfnThing(this, preFix+'thing', {
+	const rdiThing = new iot.CfnThing(this, settings.prefix+'thing', {
 		thingName:			thingId,
 		attributePayload:	{}
 	});
 
 
 	// Thing Policy
-	const rdiPolicy = new iot.CfnPolicy(this, preFix+'cfnPolicy', {
+	const rdiPolicy = new iot.CfnPolicy(this, settings.prefix+'cfnPolicy', {
 		policyName: 	policyName,
 		policyDocument:
 		// =========== Start Policy ***************/
@@ -86,7 +85,7 @@ else { //use existing bucet
 					"iot:Receive"
 				  ],
 				  "Resource": [
-					"arn:aws:iot:"+arnEnv+":topic/" + preFix + "*"
+					"arn:aws:iot:"+arnEnv+":topic/" + settings.prefix + "*"
 				  ]
 				},
 				{
@@ -95,7 +94,7 @@ else { //use existing bucet
 					"iot:Subscribe"
 				  ],
 				  "Resource": [
-					"arn:aws:iot:" + arnEnv + ":topicfilter/" + preFix + "*"
+					"arn:aws:iot:" + arnEnv + ":topicfilter/" + settings.prefix + "*"
 				  ]
 				},
 				{
@@ -164,25 +163,13 @@ else { //use existing bucet
             });
 
 // Certificat manager api of cdk can not be used to store certificates, because of security restriction
-// Can bo solved by 'overerving', but cant get taht to work. see below
-    //store csr csrin secretmanager
-//    var secretString=JSON.stringify({"csr": pem, "Keys": keys})
-//    const secret = new secretsmanager.CfnSecret(this, preFix+'Secret', {
-//      description:    'CSR PEM for IoTcode',
-//      removalPolicy:  cdk.RemovalPolicy.DESTROY,
-//      secretName:     preFix + 'CSR',
-//    });
-//  var secretString=JSON.stringify({"csr": pem, "Keys": keys})
-//  const secret = new secretsmanager.Secret(this, preFix + 'Secret');
-//  const cfnSecret = secret.construct.defaultChild as secretsmanager.CfnSecret;
-//  cfnSecret.generateSecretString = undefined;
-//  cfnSecret.secretString = secretString;
+
 }
 //==================================================================================================================
 
 
 //==================================================================================================================
-const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
+const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate', {
   status:						    'ACTIVE',
   certificateMode:			'DEFAULT',
   certificateSigningRequest:				csr
@@ -192,18 +179,18 @@ const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
 
 
 	// bind principle to policy
-	new iot.CfnPolicyPrincipalAttachment(this, preFix+'policyPrincipleAttachment', {
+	new iot.CfnPolicyPrincipalAttachment(this, settings.prefix+'policyPrincipleAttachment', {
 		policyName: 	policyName,
 		principal:		rdiCerificate.attrArn
 	});
 	// bind principle to thing
-	new iot.CfnThingPrincipalAttachment(this, preFix+'ThingPrincipalAttachment', {
+	new iot.CfnThingPrincipalAttachment(this, settings.prefix+'ThingPrincipalAttachment', {
 		thingName: 		thingId,
 		principal:		rdiCerificate.attrArn
 	});
 
 //-------------- Topic - FireHose - S3 ---------------
-	const rdiFirehoseRole = new iam.Role(this, preFix+'FirehoseRole', {
+	const rdiFirehoseRole = new iam.Role(this, settings.prefix+'FirehoseRole', {
 		assumedBy:		new iam.ServicePrincipal('firehose.amazonaws.com'),
 		roleName:		firehoseName,
 	});
@@ -251,7 +238,7 @@ const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
             "arn:aws:kms:" + arnEnv + ":key/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%"
         ],
        conditions: {
-            StringEquals: { "kms:ViaService": "s3." + regionName + ".amazonaws.com" },
+            StringEquals: { "kms:ViaService": "s3." + settings.regionName + ".amazonaws.com" },
             StringLike:   { "kms:EncryptionContext:aws:s3:arn":  "arn:aws:s3:::%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%/*" }
         }
 	}));
@@ -282,26 +269,26 @@ const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
         	 "arn:aws:kms:" + arnEnv + ":key/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%"
         ],
        conditions: {
-	        StringEquals: {"kms:viaService":          "kinesis." + regionName + ".amazonaws.com" },
+	        StringEquals: {"kms:viaService":          "kinesis." + settings.regionName + ".amazonaws.com" },
             StringLike:   {"kms:EncryptionContext:aws:kinesis:arn": "arn:aws:kinesis:" + arnEnv + ":stream/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%" }
         }
 	}));
 
 // ================ End STatement =================
 
-	var rdiFirehose = new firehose.CfnDeliveryStream(this, preFix+'DeliveryStream', {
-		deliveryStreamName:		streamName,
-		deliveryStreamType:		'DirectPut',
+	var rdiFirehose = new firehose.CfnDeliveryStream(this, settings.prefix+'DeliveryStream', {
+		deliveryStreamName:		           streamName,
+		deliveryStreamType:		          'DirectPut',
 		s3DestinationConfiguration: {
-			bucketArn:			rdiBucket.bucketArn,
-			roleArn:			rdiFirehoseRole.roleArn,
-			bufferingHints: 	{intervalInSeconds:300},
-			errorOutputPrefix:	'error',
-			prefix:				preFix
+			bucketArn:			               rdiBucket.bucketArn,
+			roleArn:			                 rdiFirehoseRole.roleArn,
+			bufferingHints: 	            {intervalInSeconds:300},
+			errorOutputPrefix:	          'error',
+			prefix:				                 settings.prefix
 
 		}
 	});
-	const rdiTopicRuleRole = new iam.Role(this, preFix+'TopicRuleRole', {
+	const rdiTopicRuleRole = new iam.Role(this, settings.prefix+'TopicRuleRole', {
 		assumedBy:		new iam.ServicePrincipal('iot.amazonaws.com'),
 		roleName:		topicRuleRoleName,
 	});
@@ -310,12 +297,12 @@ const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
       actions: ['firehose:PutRecord'],
     }));
 
-	new iot.CfnTopicRule(this, preFix+'TopicRule', {
+	new iot.CfnTopicRule(this, settings.prefix+'TopicRule', {
 		ruleName: 		topicRuleName,
 		topicRulePayload:
 		{
 			ruleDisabled:		false,
-			sql:				"select * from '" + preFix + "/ruuvi'",
+			sql:				"select * from '" + settings.prefix + "/ruuvi'",
 			actions:
 			[{
 				firehose:
@@ -333,12 +320,12 @@ const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
 
 //-------------- Website ---------------
 	// create Athena Database and Table
- 	const rdiGlueDatabase = new glue.Database(this, preFix+'IoTDatabase', {
+ 	const rdiGlueDatabase = new glue.Database(this, settings.prefix+'IoTDatabase', {
             databaseName: databaseName
     });
 
 
-	const athenaTable = new glue.Table(this, preFix+'IoTDatabaseTable', {
+	const athenaTable = new glue.Table(this, settings.prefix+'IoTDatabaseTable', {
 			database:	rdiGlueDatabase,
 		  tableName: 	tableName,
 			bucket: 	rdiBucket,
@@ -395,7 +382,7 @@ const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
 
 
     //Lambda
-    const rvdWebsite = new lambda.Function(this, preFix+'WebsiteHandler', {
+    const rvdWebsite = new lambda.Function(this, settings.prefix+'WebsiteHandler', {
       runtime: 			lambda.Runtime.NODEJS_12_X,    // execution environment
       code: 			lambda.Code.fromAsset('lambda'),  // code loaded from "lambda" directory
       handler: 			'rdiWebsite.website_handler',   // file, function
@@ -433,15 +420,11 @@ exec('aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS',
         console.log('New Bucket:     ' + settings.newBucket);
         console.log('Thing Endpoint: ' + stdout.slice(0,-1));
         console.log('--------------------------------------------------------------------------------------------------------------');
-//        console.log('CSR Pem:');
-//        console.log(csr);
-        console.log('Private Key (to be used with Ruuvi):\n');
-        console.log( keyPrivate);
-//        console.log('Public Key:');
-//        console.log( keyPublic );
+//        console.log('Private Key (to be used with Ruuvi):\n');
+//        console.log( keyPrivate);
         console.log('=============================================================================================================================');
-        console.log('Retrieve Certificat width:')
-        console.log('aws iot describe-certificate --certificate-id $CERTIFICATEID --query "certificateDescription.certificatePem" --output text')
+        console.log('Private key:    ' + fileNamePrivate);
+        console.log('Certificate:    ' + 'aws iot describe-certificate --query "certificateDescription.certificatePem" --output text --certificate-id $CERTIFICATEID');
         console.log('=============================================================================================================================');
 
         if (error !== null) {
