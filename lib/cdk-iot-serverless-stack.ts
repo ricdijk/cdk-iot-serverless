@@ -1,76 +1,88 @@
 // Environment
-const settings = require('../settings.json') ;
-const accountID          = settings.accountId;
-const regionName         = settings.regionName;
-const preFix             = settings.prefix;
+const settings = require('../settings.json') ;;
 
-//global vars
-var thingId            = preFix + '-ruuvi'
-var bucketName         = preFix + '-bucket'
-var policyName         = preFix + '-policy'
-var databaseName       = preFix + '-database'
+// region and account for use in
+var arnEnv             = settings.regionName + ":" + settings.accountId;
+
+//All used names declared as global vars (so the same when used multiple times)
+var thingId            = settings.prefix + '-ruuvi'
+var bucketName         = settings.prefix + '-bucket'
+var policyName         = settings.prefix + '-policy'
+var databaseName       = settings.prefix + '-database'
 var tableName          = 'generic'
-var firehoseName       = preFix + 'FirehoseRole'
-var streamName         = preFix + 'DeliveryStreamRuuviS3'
-var topicRuleName      = preFix + 'rule'
-var topicRuleRoleName  = preFix + 'TopicRuleRole'
-var deleveryStreamName = preFix + 'DeliveryStreamRuuviS3'
-var websiteHandlerName = preFix + '-websiteHandler'
-var arnEnv             = regionName + ":" + accountID;
+var firehoseName       = settings.prefix + 'FirehoseRole'
+var streamName         = settings.prefix + 'DeliveryStreamRuuviS3'
+var topicRuleName      = settings.prefix + 'rule'
+var topicRuleRoleName  = settings.prefix + 'TopicRuleRole'
+var deleveryStreamName = settings.prefix + 'DeliveryStreamRuuviS3'
+var websiteHandlerName = settings.prefix + '-websiteHandler'
 
-//imports
-import * as cdk      from '@aws-cdk/core';
-import * as lambda   from '@aws-cdk/aws-lambda';
-import * as s3       from '@aws-cdk/aws-s3';
-import * as apigw    from '@aws-cdk/aws-apigateway';
-import * as glue     from '@aws-cdk/aws-glue';
-import * as iot      from '@aws-cdk/aws-iot';
-import * as iam      from '@aws-cdk/aws-iam';
-import * as firehose from '@aws-cdk/aws-kinesisfirehose';
+// Location for the certificate/csr stuff
+var fileNameCsr     = 'cert/' + thingId  + '-csr.csr';
+var fileNamePublic  = 'cert/' + thingId  + '-public.key';
+var fileNamePrivate = 'cert/' + thingId  + '-private.key';
+
+
+//imports modules
+import * as cdk            from '@aws-cdk/core';
+import * as lambda         from '@aws-cdk/aws-lambda';
+import * as s3             from '@aws-cdk/aws-s3';
+import * as apigw          from '@aws-cdk/aws-apigateway';
+import * as glue           from '@aws-cdk/aws-glue';
+import * as iot            from '@aws-cdk/aws-iot';
+import * as iam            from '@aws-cdk/aws-iam';
+import * as firehose       from '@aws-cdk/aws-kinesisfirehose';
+import * as secretsmanager from '@aws-cdk/aws-secretsmanager';
 import { PolicyStatement } from "@aws-cdk/aws-iam";
+import { Construct }       from 'constructs';
 
-//stack
+//====================================================================================================================
+// Start of stack
+//====================================================================================================================
 export class CdkStack extends cdk.Stack {
-  public readonly rdiWebsiteEndpoint: cdk.CfnOutput;
-
+  public readonly rdiCertificateId: cdk.CfnOutput;
 
   //constructor
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-//-------------- Basics ---------------
+
+// Format output
+  console.clear();
+  console.log('-- Start -------------------------------------------------------------------------------------------');
+
+
+//-------------- S3 creation/retrieving depending on setting ---------------
 var rdiBucket;
 if (settings.newBucket)
 {
     // create S3 bucket
-  rdiBucket = new s3.Bucket(this, preFix+'Bucket', {
+  rdiBucket = new s3.Bucket(this, settings.prefix+'Bucket', {
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       bucketName:  bucketName
   });
-  console.log('Created Bucket')
 }
 else { //use existing bucet
-  rdiBucket = s3.Bucket.fromBucketAttributes(this, preFix+'ImportedBucket', {
+  rdiBucket = s3.Bucket.fromBucketAttributes(this, settings.preFix+'ImportedBucket', {
       bucketArn: 'arn:aws:s3:::'+bucketName
     });
-    console.log('Reused Bucket')
-
 }
 
 
 //-------------- Thing ---------------
-	//IotCore - thing
-	const rdiThing = new iot.CfnThing(this, preFix+'thing', {
+	//IotCore - create thing
+	const rdiThing = new iot.CfnThing(this, settings.prefix+'thing', {
 		thingName:			thingId,
 		attributePayload:	{}
 	});
 
 
-	// Thing Policy
-	const rdiPolicy = new iot.CfnPolicy(this, preFix+'cfnPolicy', {
+	// create Policy for thing
+	const rdiPolicy = new iot.CfnPolicy(this, settings.prefix+'cfnPolicy', {
 		policyName: 	policyName,
 		policyDocument:
+    // used inline policy. Can be stored in file, however is dependend on settings
 		// =========== Start Policy ***************/
 			{
 			  "Version": "2012-10-17",
@@ -82,7 +94,7 @@ else { //use existing bucet
 					"iot:Receive"
 				  ],
 				  "Resource": [
-					"arn:aws:iot:"+arnEnv+":topic/" + preFix + "*"
+					"arn:aws:iot:"+arnEnv+":topic/" + settings.prefix + "*"
 				  ]
 				},
 				{
@@ -91,7 +103,7 @@ else { //use existing bucet
 					"iot:Subscribe"
 				  ],
 				  "Resource": [
-					"arn:aws:iot:" + arnEnv + ":topicfilter/" + preFix + "*"
+					"arn:aws:iot:" + arnEnv + ":topicfilter/" + settings.prefix + "*"
 				  ]
 				},
 				{
@@ -108,48 +120,103 @@ else { //use existing bucet
 		// =========== End Policy ***************/
 	});
 
-	const rdiCerificate = new iot.CfnCertificate(this, preFix+'Certificate', {
-		status:						'ACTIVE',
-		certificateMode:			'SNI_ONLY',
-		certificatePem:				`-----BEGIN CERTIFICATE-----
-MIIDWTCCAkGgAwIBAgIUXXEr5cx7TsKmsblm6sZFoDpCwakwDQYJKoZIhvcNAQEL
-BQAwTTFLMEkGA1UECwxCQW1hem9uIFdlYiBTZXJ2aWNlcyBPPUFtYXpvbi5jb20g
-SW5jLiBMPVNlYXR0bGUgU1Q9V2FzaGluZ3RvbiBDPVVTMB4XDTIwMTEyNTEyNDAx
-NFoXDTQ5MTIzMTIzNTk1OVowHjEcMBoGA1UEAwwTQVdTIElvVCBDZXJ0aWZpY2F0
-ZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMFpG5kiZpPONEuePxR/
-h4rG6nbCGFVU8XBs0BrkrjiA2DXOdwm8O/3ZL4gcD0XU+kcqznOP85r9+/F9cG/2
-KWmtFzx/v7e2AhW0BaYVX31X40KS+T/l9dUPN62Vxryt/N+45eAplK3k4wi+IVEm
-LcAtgwHxDnruHacyzC8QCcrefidJRIz9/4kr5PCC8PQKYWjErxzg77UTNPffyocz
-9tH7DY8anQ3DT5JOll3DnqaTZelHFtWukFD6NoAM/FD/fO/vzBPvkFJMwMh6nlB0
-Qm1103TJKh1TSXpf/IfxX3E8xRXuq0yetfJLHeNXZqHe+ElfCYfbEE2UzEQbjhtS
-mp0CAwEAAaNgMF4wHwYDVR0jBBgwFoAUxbe/4eq2LAllh9kvA9ZiwcXdeK4wHQYD
-VR0OBBYEFNG6SmyFV1fY4boV4kx+gwNDjlclMAwGA1UdEwEB/wQCMAAwDgYDVR0P
-AQH/BAQDAgeAMA0GCSqGSIb3DQEBCwUAA4IBAQAUMq9N93L+tYJeBbkFwS6GXLOX
-6dBlEcmMJdCI7Oyde/+yNGAbdDPc4/IX6efyRyRtc/4DLgpGUUBbdWqqWzihdWPC
-IteW/kutnRj1baJnK7lroHyq034ukgcSalFyvU7oNihnYk7TVrtkeFBLY9pAGswl
-DBzPMyTZ+Skp4XvlG1BPbqvUl3P+JW5KVhDbndJcHKMf6mai4+bxRqcCGRZDwJ6Y
-zYkPCqFyERLQBwkE+im8CagboV25TvtBX2l2IPbO5Jo2vNy2pY7i3mR+9/9NZLw+
-K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
------END CERTIFICATE-----`
-	});
+// To connect the IOT device savely to AWS, we need a certificate
+// The way to do this is:
+// 1. cretae key generateKeyPair
+// 2. cretae CSR (Certificate signing request)
+// 3. Sign CSR with private keys
+// 4. Sent signing request to AWS IOT-core
+// 5. retrieve Certificate from AWS (not part of cdk stack, command to retrieve given in logfile)
+// 6. Store private key and certificate on IOT device
+//===== CSR creation =============================================================================================================
+  // Loof on filesytem to see if CSR/key pair is stored?
+  const fs = require('fs');
+  var csr;
+  var keyPrivate:string;
+  var keyPublic:string;
+
+  if (fs.existsSync(fileNameCsr))
+  { //if stored, read from file (used sync because I need them right away and have to wait untill We got them)
+    console.log('Read CSR/key from Storage.')
+    csr        = fs.readFileSync(fileNameCsr).toString();
+    keyPrivate = fs.readFileSync(fileNamePrivate).toString() ;
+    keyPublic  = fs.readFileSync(fileNamePublic).toString() ;
+  }
+  else
+  { //if not stored, create, sign and store on file
+
+    console.log('Generating new CSR/key')
+    var forge = require('node-forge');
+    var pki   = forge.pki;
+
+  // generate a keypair or use one you have already
+    var keys      = pki.rsa.generateKeyPair(2048);
+    var csr       = forge.pki.createCertificationRequest();
+    csr.publicKey = keys.publicKey;
+    csr.setSubject([{
+      name: 'commonName',
+      value: 'AWS IoT Certificate'
+    }]);
+
+  // sign certification req uest
+    csr.sign(keys.privateKey);
+    csr        = forge.pki.certificationRequestToPem(csr);
+    keyPrivate = pki.privateKeyToPem(keys.privateKey)
+    keyPublic  = pki.publicKeyToPem(keys.publicKey)
+
+  //store on file (used async, dont need to bother when save is ready)
+    fs.writeFile(fileNameCsr, csr,  function(err:any) {
+                if (err) {
+                    return console.error('Creation of output file failed: '+ err +'\n\nCSR could not be saved');
+                }
+            });
+    fs.writeFile(fileNamePrivate, keyPrivate,  function(err:any) {
+                if (err) {
+                    return console.error('Creation of output file failed: '+ err +'\n\nPrivate Key could not be saved');
+                }
+            });
+    fs.writeFile(fileNamePublic, keyPublic,  function(err:any) {
+                if (err) {
+                    return console.error('Creation of output file failed: '+ err +'\n\nPrivate Key could not be saved');
+                }
+            });
+// Would have preferred to store CSR and keys in SecretManager
+// however SecretManager api of cdk does not have a method to store own secrets because of security restriction (secret will be exposed in cdk code/logging)
+// Therefor choose to store on file
+}
+//==================================================================================================================
 
 
-	// bind principle to policy
-	new iot.CfnPolicyPrincipalAttachment(this, preFix+'policyPrincipleAttachment', {
+//=== Actual creation of certificate in IOT core ===================================================================
+const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate', {
+  status:						         'ACTIVE',
+  certificateMode:			     'DEFAULT',
+  certificateSigningRequest:	csr
+});
+
+//==================================================================================================================
+
+
+	// bind principle/certificate to policy
+	new iot.CfnPolicyPrincipalAttachment(this, settings.prefix+'policyPrincipleAttachment', {
 		policyName: 	policyName,
 		principal:		rdiCerificate.attrArn
 	});
 	// bind principle to thing
-	new iot.CfnThingPrincipalAttachment(this, preFix+'ThingPrincipalAttachment', {
+	new iot.CfnThingPrincipalAttachment(this, settings.prefix+'ThingPrincipalAttachment', {
 		thingName: 		thingId,
 		principal:		rdiCerificate.attrArn
 	});
 
+
 //-------------- Topic - FireHose - S3 ---------------
-	const rdiFirehoseRole = new iam.Role(this, preFix+'FirehoseRole', {
-		assumedBy:		new iam.ServicePrincipal('firehose.amazonaws.com'),
-		roleName:		firehoseName,
+// ================ define Firehose and add policy to readfrom topic and write to S3 =================
+// ================ Start Policy Statements =================
+	const rdiFirehoseRole = new iam.Role(this, settings.prefix+'FirehoseRole', {
+		assumedBy: new iam.ServicePrincipal('firehose.amazonaws.com'),
+		roleName:	  	 firehoseName,
 	});
+  // Policy cretaed with Policy statements (used policy from console as exemple)
 	rdiFirehoseRole.addToPolicy(new PolicyStatement({
         actions: [
             "glue:GetTable",
@@ -194,7 +261,7 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
             "arn:aws:kms:" + arnEnv + ":key/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%"
         ],
        conditions: {
-            StringEquals: { "kms:ViaService": "s3." + regionName + ".amazonaws.com" },
+            StringEquals: { "kms:ViaService": "s3." + settings.regionName + ".amazonaws.com" },
             StringLike:   { "kms:EncryptionContext:aws:s3:arn":  "arn:aws:s3:::%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%/*" }
         }
 	}));
@@ -225,26 +292,29 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
         	 "arn:aws:kms:" + arnEnv + ":key/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%"
         ],
        conditions: {
-	        StringEquals: {"kms:viaService":          "kinesis." + regionName + ".amazonaws.com" },
+	        StringEquals: {"kms:viaService":          "kinesis." + settings.regionName + ".amazonaws.com" },
             StringLike:   {"kms:EncryptionContext:aws:kinesis:arn": "arn:aws:kinesis:" + arnEnv + ":stream/%FIREHOSE_POLICY_TEMPLATE_PLACEHOLDER%" }
         }
 	}));
+// ================ End Policy Statements =================
 
-// ================ End STatement =================
-
-	var rdiFirehose = new firehose.CfnDeliveryStream(this, preFix+'DeliveryStream', {
-		deliveryStreamName:		streamName,
-		deliveryStreamType:		'DirectPut',
+  // Create kinesis firehose delivery stream
+	var rdiFirehose = new firehose.CfnDeliveryStream(this, settings.prefix+'DeliveryStream', {
+		deliveryStreamName:		           streamName,
+		deliveryStreamType:		          'DirectPut',
 		s3DestinationConfiguration: {
-			bucketArn:			rdiBucket.bucketArn,
-			roleArn:			rdiFirehoseRole.roleArn,
-			bufferingHints: 	{intervalInSeconds:300},
-			errorOutputPrefix:	'error',
-			prefix:				preFix
+			bucketArn:			               rdiBucket.bucketArn,
+			roleArn:			                 rdiFirehoseRole.roleArn,
+			bufferingHints: 	            {intervalInSeconds:300}, //Hint to write each 300 secs to S3, no restriction on filesize
+			errorOutputPrefix:	          'error',
+			prefix:				                 settings.prefix
 
 		}
 	});
-	const rdiTopicRuleRole = new iam.Role(this, preFix+'TopicRuleRole', {
+
+
+  // cretae role for data from topic to deliverystream
+	const rdiTopicRuleRole = new iam.Role(this, settings.prefix+'TopicRuleRole', {
 		assumedBy:		new iam.ServicePrincipal('iot.amazonaws.com'),
 		roleName:		topicRuleRoleName,
 	});
@@ -253,12 +323,13 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
       actions: ['firehose:PutRecord'],
     }));
 
-	new iot.CfnTopicRule(this, preFix+'TopicRule', {
+  // Create rule to push data to firehose delevery stream
+	new iot.CfnTopicRule(this, settings.prefix+'TopicRule', {
 		ruleName: 		topicRuleName,
 		topicRulePayload:
 		{
 			ruleDisabled:		false,
-			sql:				"select * from '" + preFix + "/ruuvi'",
+			sql:				"select * from '" + settings.prefix + "/ruuvi'",
 			actions:
 			[{
 				firehose:
@@ -274,17 +345,15 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
 
 
 
-//-------------- Website ---------------
+//-------------- Website/retrievel of data ---------------
 	// create Athena Database and Table
- 	const rdiGlueDatabase = new glue.Database(this, preFix+'IoTDatabase', {
+ 	const rdiGlueDatabase = new glue.Database(this, settings.prefix+'IoTDatabase', {
             databaseName: databaseName
     });
-
-
-	const athenaTable = new glue.Table(this, preFix+'IoTDatabaseTable', {
-			database:	rdiGlueDatabase,
+	const athenaTable = new glue.Table(this, settings.prefix+'IoTDatabaseTable', {
+			database:	  rdiGlueDatabase,
 		  tableName: 	tableName,
-			bucket: 	rdiBucket,
+			bucket: 	  rdiBucket,
  		  columns:
 		  [
       		{ name: 'humidity',         			      type: glue.Schema.DOUBLE },
@@ -303,12 +372,10 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
     	compressed: false,
     	description: 'Generic IoT data',
     	partitionKeys: [],
-//    	partitionKeys: [{ name: 'timestamp',       			type: glue.Schema.STRING }],
     	s3Prefix: ''
-
     });
 
-    //Lambda for website//Lambda for website
+  //Lambda for website
 	//permissions on S3 (via Athena)
 	const lambdaPolicyS3 = new PolicyStatement()
     lambdaPolicyS3.addActions("s3:GetBucketLocation")
@@ -322,6 +389,7 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
     lambdaPolicyS3.addResources(rdiBucket.bucketArn+"*")
     lambdaPolicyS3.addResources("arn:aws:s3:::athena-express-*")   //should be a
 
+  //permissions for lambda on athena/glue
 	const lambdaPolicyAthena = new PolicyStatement()
     lambdaPolicyAthena.addActions("athena:StartQueryExecution")
     lambdaPolicyAthena.addActions("athena:GetQueryExecution")
@@ -337,14 +405,14 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
     lambdaPolicyAthena.addResources("*")
 
 
-    //Lambda
-    const rvdWebsite = new lambda.Function(this, preFix+'WebsiteHandler', {
-      runtime: 			lambda.Runtime.NODEJS_12_X,    // execution environment
-      code: 			lambda.Code.fromAsset('lambda'),  // code loaded from "lambda" directory
-      handler: 			'rdiWebsite.website_handler',   // file, function
-      functionName:		websiteHandlerName,
-      timeout:			cdk.Duration.seconds(30),
-      initialPolicy: 	[lambdaPolicyS3, lambdaPolicyAthena ],
+    //Lambda itself
+    const rvdWebsite = new lambda.Function(this, settings.prefix+'WebsiteHandler', {
+      runtime: 			 lambda.Runtime.NODEJS_12_X,    // execution environment
+      code: 			   lambda.Code.fromAsset('lambda'),  // code loaded from "lambda" directory
+      handler: 			 'rdiWebsite.website_handler',   // file, function
+      functionName:	 websiteHandlerName,
+      timeout:			 cdk.Duration.seconds(30), //AThena is slow, so increased the timeouit to 30 secs
+      initialPolicy: [lambdaPolicyS3, lambdaPolicyAthena ],
       environment: {
       	databaseName: 	databaseName,
       	tableName: 		  tableName,
@@ -353,30 +421,37 @@ K1HGTnLhK7PgwFLN8oEH00u3mEk4qsSy6jsk3cnUugCz1jKfmGoeogQwMGA5
     });
 
 
-    // defines an API Gateway REST API resource backed for website
+    // define an API Gateway REST API resource backed for website
     const rdiGateway = new apigw.LambdaRestApi(this, 'Endpoint', {
         handler: rvdWebsite
     });
 
 // -------------- Display Thing Endpoint ------------
    //store endpoint
-    this.rdiWebsiteEndpoint = new cdk.CfnOutput(this, 'GatewayUrl', {
-      value: rdiGateway.url
+    this.rdiCertificateId = new cdk.CfnOutput(this, 'CERTIFICATEID', {
+      value: rdiCerificate.ref
     });
 
-// Thing Url only via cli command. Is Async, cant/dont know how to put it in stack output
+// Output info to console
+// endpoint of thing can be retrive via AWS cli, therfor an shell command
 var exec = require('child_process').exec, child;
 exec('aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS',
     function (error:any, stdout:any, stderr:any) {
         console.log('----------------------------------------------------------------------------------------------------');
-        console.log('Deploying IoT Serverless Stack for:');
-        console.log('');
+        console.log('Info:');
         console.log('Account:        ' + settings.accountId);
         console.log('Region:         ' + settings.regionName);
         console.log('Prefix:         ' + settings.prefix);
         console.log('New Bucket:     ' + settings.newBucket);
-        console.log('Thing Endpoint: ' + stdout);
-        console.log('----------------------------------------------------------------------------------------------------');
+        console.log('Thing Endpoint: ' + stdout.slice(0,-1));
+//        console.log('Private Key (to be used with Ruuvi):\n');
+//        console.log( keyPrivate);
+        console.log('==========================================================================================================================================');
+        console.log('Key and Certificate for IOT device can be retrieved:')
+        console.log('Private key:    ' + fileNamePrivate);
+        console.log('Certificate:    ' + 'aws iot describe-certificate --query "certificateDescription.certificatePem" --output text --certificate-id $CERTIFICATEID');
+        console.log('== End ===================================================================================================================================');
+        console.log('')
         if (error !== null) {
              console.log('exec error: ' + error);
         }

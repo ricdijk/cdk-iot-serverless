@@ -12,3 +12,7 @@ cdk.out
 .parcel-cache
 
 .DS_Store
+
+#generated csr and keys
+cert/*.key
+cert/*.csr

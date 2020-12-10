@@ -32,18 +32,23 @@ macs = []
 loop=0
 
 #AWS parameters
-PREFIX='rdirdi';
-
 ENDPOINT="a12kn3h7do626x-ats.iot.eu-west-1.amazonaws.com"
-CLIENT_ID = PREFIX+"-ruuvi"
-PATH_TO_CERT = "/home/pi/CDK-ruuvi/be72dd4171-certificate.pem.crt"
-PATH_TO_KEY = "/home/pi/CDK-ruuvi/be72dd4171-private.pem.key"
+PREFIX = 'rdiricdijk'
+CLIENT_ID = PREFIX + "-ruuvi"
+PATH_TO_CERT = "/home/pi/CDK-ruuvi/ruuvi-certificate.pem.crt"
+PATH_TO_KEY  = "/home/pi/CDK-ruuvi/ruuvi-private.pem.key"
 PATH_TO_ROOT = "/home/pi/CDK-ruuvi/root-CA.crt"
 
-TOPIC 	 = PREFIX + "/ruuvi"
-TOPICRX  = PREFIX + "/ruuvi-rx"
+TOPIC 		= PREFIX + "/ruuvi"
+TOPICRX	    = PREFIX + "/ruuvi-rx"
 
 rdiLastMessage = ''
+
+print('--------------------------------------------------------------------------------')
+print('Prefic:   ', PREFIX)
+print('ClientId: ', CLIENT_ID)
+print('EndPoint: ', ENDPOINT)
+print('--------------------------------------------------------------------------------')
 ###########################################################################
 # Handler for RUUVI data
 
