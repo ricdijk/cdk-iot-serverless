@@ -16,6 +16,7 @@ var topicRuleName      = settings.prefix + 'rule'
 var topicRuleRoleName  = settings.prefix + 'TopicRuleRole'
 var deleveryStreamName = settings.prefix + 'DeliveryStreamRuuviS3'
 var websiteHandlerName = settings.prefix + '-websiteHandler'
+var cleanupHandlerName = settings.prefix + '-cleanupHandler'
 
 // Location for the certificate/csr stuff
 var fileNameCsr     = 'cert/' + thingId  + '-csr.csr';
@@ -385,6 +386,7 @@ const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate'
     lambdaPolicyS3.addActions("s3:ListMultipartUploadParts")
     lambdaPolicyS3.addActions("s3:AbortMultipartUpload")
     lambdaPolicyS3.addActions("s3:PutObject")
+    lambdaPolicyS3.addActions("s3:DeleteObject") //for cleanup
     lambdaPolicyS3.addResources(rdiBucket.bucketArn)
     lambdaPolicyS3.addResources(rdiBucket.bucketArn+"*")
     lambdaPolicyS3.addResources("arn:aws:s3:::athena-express-*")   //should be a
@@ -424,6 +426,21 @@ const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate'
     // define an API Gateway REST API resource backed for website
     const rdiGateway = new apigw.LambdaRestApi(this, 'Endpoint', {
         handler: rvdWebsite
+    });
+
+    //Lambda for deleteion (same file, differetnt handler)
+    const rvdCleanupJob = new lambda.Function(this, settings.prefix+'cleaunupHandler', {
+      runtime: 			 lambda.Runtime.NODEJS_12_X,    // execution environment
+      code: 			   lambda.Code.fromAsset('lambda'),  // code loaded from "lambda" directory
+      handler: 			 'rdiWebsite.cleanup_handler',   // file, function
+      functionName:	 cleanupHandlerName,
+      timeout:			 cdk.Duration.seconds(300), //AThena is slow, so increased the timeouit to 300 secs
+      initialPolicy: [lambdaPolicyS3, lambdaPolicyAthena ],
+      environment: {
+        databaseName: 	databaseName,
+        tableName: 		  tableName,
+        bucketName:     bucketName
+      }
     });
 
 // -------------- Display Thing Endpoint ------------

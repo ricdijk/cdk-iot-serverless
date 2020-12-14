@@ -5,7 +5,8 @@ console.log('RDI: BUCKET', 's3://' + process.env.bucketName + '/athena/')
 const athenaExpress = new AthenaExpress(athenaExpressConfig);
 
 
-
+//********************************************************************************************************************
+// Website handler
 exports.website_handler = async (event, context, callback) => {
 	var table = '"' + process.env.databaseName + '"."' + process.env.tableName +'"';
 	const sqlQuery = `SELECT timestamp2, temperature, humidity, pressure, acceleration, acceleration_x, acceleration_y, acceleration_z, tx_power, movement_counter, measurement_sequence_number
@@ -24,6 +25,71 @@ exports.website_handler = async (event, context, callback) => {
 	}
 };
 
+//********************************************************************************************************************
+// Cleanup handler
+exports.cleanup_handler = async (event, context, callback) => {
+	var table = '"' + process.env.databaseName + '"."' + process.env.tableName +'"';
+	//const sqlQuery = `delete FROM ` + table + `where timestamp2 < now() - interval '15' day`;
+	// Athena cant do deletes
+	// so selecting all paths and then delete
+	const sqlQuery  = `Select "$path"  as fullFileName   FROM ` + table + ` where timestamp2 < now() - interval '6' day`;
+	const sqlQuery2 = `Select count(*) as aantal         FROM ` + table + ` where timestamp2 < now() - interval '6' day`;
+	console.log('RDI: Cleanup data');
+	console.log('RDI: Table: ', table);
+	console.log('RDI: SQL:   ', sqlQuery);
+
+	try {
+		var results = await athenaExpress.query(sqlQuery);
+		console.log('RDI: Found: ' + results.Items.length + ' record(s) for cleaning.');
+		rdi_cleanupS3(results)
+
+		var results2 = await athenaExpress.query(sqlQuery2);
+		console.log('RDI: Selected records after cleanup: ' + results2.Items[0].aantal )
+		console.log('RDI: Deleted: ' + (results.Items.length - results2.Items[0].aantal) + ' record(s)')
+		console.log('RDI: Note: Delete might still be in progress.')
+
+		console.log('RDI: The end');
+	} catch (error) {
+		console.log('RDI: !!!Error in Cleanup: ' + error);
+	}
+};
+
+//********************************************************************************************************************
+// Cleanup
+function rdi_cleanupS3(result)
+{
+	var data=result.Items;
+	// exemple filename: s3://rdiricdijk-bucket/rdiricdijk2020/12/07/04/rdiricdijkDeliveryStreamRuuviS3-1-2020-12-07-04-27-06-fa558435-6389-41be-9e8e-d32446a424cd
+
+
+	var deleteFileList=[];
+//	for (var i=0; i<data.length;i++)
+	for (var i=0; i<5;i++)
+	{
+		var pos      = data[i].fullFileName.slice(6).indexOf('/')+6 //find /after bucket name
+		var bucket   = data[i].fullFileName.slice(5, pos);
+		var fileName = data[i].fullFileName.slice(pos+1);
+
+		deleteFileList.push({Key: fileName})
+	}
+	var deleteParam = {
+    Bucket: bucket,
+    Delete: {  Objects: deleteFileList }
+	};
+	var s3 = new aws.S3();
+	s3.deleteObjects(deleteParam, function(err, data) {
+	    if (err) console.log(err, err.stack);
+	    else {
+				if (data.Errors.length) console.log('RDI: !!!Error deleting objects: ', data.Errors);
+				else                    console.log('RDI: deleteObjects: Success' );
+			}
+	});
+
+}
+
+
+//********************************************************************************************************************
+// Website
 function rdi_createPage(result)
 {
 	var data=result.Items;
@@ -101,7 +167,7 @@ function richd_init()
 		series: as
 	}
 
-	
+
 
 	rvdView.setColumns(cols);
 	rvdChart.draw(rvdView, rvdOptions);
