@@ -32,8 +32,8 @@ exports.cleanup_handler = async (event, context, callback) => {
 	//const sqlQuery = `delete FROM ` + table + `where timestamp2 < now() - interval '15' day`;
 	// Athena cant do deletes
 	// so selecting all paths and then delete
-	const sqlQuery  = `Select "$path"  as fullFileName   FROM ` + table + ` where timestamp2 < now() - interval '6' day`;
-	const sqlQuery2 = `Select count(*) as aantal         FROM ` + table + ` where timestamp2 < now() - interval '6' day`;
+	const sqlQuery  = `Select "$path"  as fullFileName   FROM ` + table + ` where timestamp2 < now() - interval '7' day`;
+	const sqlQuery2 = `Select count(*) as aantal         FROM ` + table + ` where timestamp2 < now() - interval '7' day`;
 	console.log('RDI: Cleanup data');
 	console.log('RDI: Table: ', table);
 	console.log('RDI: SQL:   ', sqlQuery);
@@ -44,6 +44,7 @@ exports.cleanup_handler = async (event, context, callback) => {
 		rdi_cleanupS3(results)
 
 		var results2 = await athenaExpress.query(sqlQuery2);
+		console.log('');
 		console.log('RDI: Selected records after cleanup: ' + results2.Items[0].aantal )
 		console.log('RDI: Deleted: ' + (results.Items.length - results2.Items[0].aantal) + ' record(s)')
 		console.log('RDI: Note: Delete might still be in progress.')
@@ -60,30 +61,47 @@ function rdi_cleanupS3(result)
 {
 	var data=result.Items;
 	// exemple filename: s3://rdiricdijk-bucket/rdiricdijk2020/12/07/04/rdiricdijkDeliveryStreamRuuviS3-1-2020-12-07-04-27-06-fa558435-6389-41be-9e8e-d32446a424cd
+	var lookupKey=[];
 
-
-	var deleteFileList=[];
-//	for (var i=0; i<data.length;i++)
-	for (var i=0; i<5;i++)
+	var bucketStart;
+	var bucketSize=1000; //AWS limits max 1000 deletes per request
+	for (bucketStart=0; bucketStart<data.length; bucketStart+=bucketSize)
 	{
-		var pos      = data[i].fullFileName.slice(6).indexOf('/')+6 //find /after bucket name
-		var bucket   = data[i].fullFileName.slice(5, pos);
-		var fileName = data[i].fullFileName.slice(pos+1);
+		var loopEnd=Math.min(data.length, bucketStart+bucketSize)
+//		var loopEnd=Math.min(loopEnd,bucketStart+5)//testing
+		var displayText = bucketStart+' to ' + (loopEnd-1);
+		console.log('RDI: Deleting records: ' + displayText);
 
-		deleteFileList.push({Key: fileName})
+		var deleteFileList=[];
+	  for (var i=bucketStart; i<loopEnd; i++)
+		{
+			var pos      = data[i].fullFileName.slice(6).indexOf('/')+6 //find /after bucket name
+			var bucket   = data[i].fullFileName.slice(5, pos);
+			var fileName = data[i].fullFileName.slice(pos+1);
+
+			lookupKey[i]=fileName; //key to lookup which batch was deletd to put in console log
+			deleteFileList.push({Key: fileName})
+		}
+		var deleteParam = {
+	    Bucket: bucket,
+	    Delete: {  Objects: deleteFileList }
+		};
+		var s3 = new aws.S3();
+		// ACtual deletion. Happens async. However I cannot await result (e.g. with a promise construction)
+		// Seems like the single delete call 'deleteObject', can be deleted.
+		// Choose not to use single file deletion, because the number of files would result in a lot of calls
+		// And is is a non critical background proces (doesm't matter if the error gets logged on a later moment)
+	  s3.deleteObjects(deleteParam, function(err, dat) {
+		    if (err) console.log(err, err.stack);
+		    else {
+					if (dat.Errors.length) console.log('RDI: !!!Error deleting objects: ', dat.Errors);
+					else {
+						var start=lookupKey.indexOf(dat.Deleted[0].Key);
+						console.log('RDI: deleteObjects (' + start + '): Success' );
+					}
+				}
+		});
 	}
-	var deleteParam = {
-    Bucket: bucket,
-    Delete: {  Objects: deleteFileList }
-	};
-	var s3 = new aws.S3();
-	s3.deleteObjects(deleteParam, function(err, data) {
-	    if (err) console.log(err, err.stack);
-	    else {
-				if (data.Errors.length) console.log('RDI: !!!Error deleting objects: ', data.Errors);
-				else                    console.log('RDI: deleteObjects: Success' );
-			}
-	});
 
 }
 

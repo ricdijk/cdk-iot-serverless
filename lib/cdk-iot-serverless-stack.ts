@@ -17,6 +17,7 @@ var topicRuleRoleName  = settings.prefix + 'TopicRuleRole'
 var deleveryStreamName = settings.prefix + 'DeliveryStreamRuuviS3'
 var websiteHandlerName = settings.prefix + '-websiteHandler'
 var cleanupHandlerName = settings.prefix + '-cleanupHandler'
+var cleanupScheduleName= settings.prefix + '-cleanupSchedule'
 
 // Location for the certificate/csr stuff
 var fileNameCsr     = 'cert/' + thingId  + '-csr.csr';
@@ -25,17 +26,20 @@ var fileNamePrivate = 'cert/' + thingId  + '-private.key';
 
 
 //imports modules
-import * as cdk            from '@aws-cdk/core';
-import * as lambda         from '@aws-cdk/aws-lambda';
-import * as s3             from '@aws-cdk/aws-s3';
-import * as apigw          from '@aws-cdk/aws-apigateway';
-import * as glue           from '@aws-cdk/aws-glue';
-import * as iot            from '@aws-cdk/aws-iot';
-import * as iam            from '@aws-cdk/aws-iam';
-import * as firehose       from '@aws-cdk/aws-kinesisfirehose';
-import * as secretsmanager from '@aws-cdk/aws-secretsmanager';
-import { PolicyStatement } from "@aws-cdk/aws-iam";
-import { Construct }       from 'constructs';
+import * as cdk                from '@aws-cdk/core';
+import * as lambda             from '@aws-cdk/aws-lambda';
+import * as s3                 from '@aws-cdk/aws-s3';
+import * as apigw              from '@aws-cdk/aws-apigateway';
+import * as glue               from '@aws-cdk/aws-glue';
+import * as iot                from '@aws-cdk/aws-iot';
+import * as iam                from '@aws-cdk/aws-iam';
+import * as firehose           from '@aws-cdk/aws-kinesisfirehose';
+import * as secretsmanager     from '@aws-cdk/aws-secretsmanager';
+import * as events_targets     from '@aws-cdk/aws-events-targets';
+import * as events             from '@aws-cdk/aws-events';
+import { PolicyStatement }     from "@aws-cdk/aws-iam";
+import { Construct }           from 'constructs';
+
 
 //====================================================================================================================
 // Start of stack
@@ -306,7 +310,7 @@ const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate'
 		s3DestinationConfiguration: {
 			bucketArn:			               rdiBucket.bucketArn,
 			roleArn:			                 rdiFirehoseRole.roleArn,
-			bufferingHints: 	            {intervalInSeconds:300}, //Hint to write each 300 secs to S3, no restriction on filesize
+			bufferingHints: 	            {intervalInSeconds:600}, //Hint to write each 600 secs to S3, no restriction on filesize
 			errorOutputPrefix:	          'error',
 			prefix:				                 settings.prefix
 
@@ -424,7 +428,7 @@ const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate'
 
 
     // define an API Gateway REST API resource backed for website
-    const rdiGateway = new apigw.LambdaRestApi(this, 'Endpoint', {
+    const rdiGateway = new apigw.LambdaRestApi(this, settings.prefix+'Endpoint', {
         handler: rvdWebsite
     });
 
@@ -441,6 +445,19 @@ const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate'
         tableName: 		  tableName,
         bucketName:     bucketName
       }
+    });
+
+    //schedule to run once a day with EventBridge service
+/* odd, does not work, with require instead of import works fine (https://github.com/aws-samples/aws-cdk-examples/issues/89)
+    var rule = new events.Rule(this, settings.prefix+'ScheduleRule', {
+     schedule: events.Schedule.cron({ minute: '0', hour: '4' }),
+     targets: [new events_targets.LambdaFunction(rvdCleanupJob)],
+    });
+*/
+    const eventTargets = require("@aws-cdk/aws-events-targets");
+    var rule = new events.Rule(this, settings.prefix+'ScheduleRule', {
+     schedule: events.Schedule.cron({ minute: '0', hour: '4' }),
+     targets: [new eventTargets.LambdaFunction(rvdCleanupJob)],
     });
 
 // -------------- Display Thing Endpoint ------------

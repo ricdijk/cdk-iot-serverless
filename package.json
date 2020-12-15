@@ -23,6 +23,8 @@
   "dependencies": {
     "@aws-cdk/aws-apigateway": "^1.74.0",
     "@aws-cdk/aws-athena": "^1.74.0",
+    "@aws-cdk/aws-events": "^1.78.0",
+    "@aws-cdk/aws-events-targets": "^1.78.0",
     "@aws-cdk/aws-glue": "^1.74.0",
     "@aws-cdk/aws-iam": "^1.74.0",
     "@aws-cdk/aws-iot": "^1.74.0",
