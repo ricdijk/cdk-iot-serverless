@@ -37,20 +37,27 @@ The stack will automaticly delete created S3 objects:
  * Athena objects with an S3 policy
  * Ruuvi json objects, with a daily scheduled Lambda function
 
+____
 ## Ruuvi code and scheduling
 ### installation
-  * Ruuvi code is stared with: 'python3 <path_to>rdi_ruuvi LOOPS=1 SEC=60'
-  * The 'ruuvitag-sensor' library  is used ro read the ruuvi data (https://github.com/ttu/ruuvitag-sensor)
+  * The ruuvi code consists of one python script: 'rdi_ruuvi.py', stored in the 'ruuvi' directory of this repository. Store this file in a appropriate directory on the IOT device.
+  * The following fields need to be configured to upload data to AWS:
+    ** ENDPOINT
+    ** PREFIX
+    ** PATH_TO_CERT
+    ** PATH_TO_KEY
+  * The values can be retrieved from the 'cdk deploy' output.
+### Prerequisits 
+  * The 'ruuvitag-sensor' library  is used to read the ruuvi data (https://github.com/ttu/ruuvitag-sensor)
   * For the 'ruuvitag-sensor' library to work the 'Bleso' bluetooth library needs to be installed and pointed to by setting the enviroment variable 'RUUVI_BLE_ADAPTER="Bleson"
   * To connect to AWS the 'aws-iot-device-sdk-python' library needs to be installed
 
 ### Schedulling
-  * Ruuvi can be scheduelled from cron with e.g. the following cron line
+  * Ruuvi code is stared with: 'python3 <path_to>rdi_ruuvi LOOPS=1 SEC=60'
+  * Ruuvi can be scheduelled from cron with e.g. the following cron line:
   ```
   0 * * * * export RUUVI_BLE_ADAPTER="Bleson"; python3 /home/pi/CDK-ruuvi/rdi_ruuvi.py 60 60      2>&1 >> /home/pi/<path>/ruuvi.log
   ```
-
-
 ____
 # Installation
 ## Installation

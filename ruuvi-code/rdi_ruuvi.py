@@ -32,13 +32,13 @@ macs = []
 loop=0
 
 #AWS parameters
-ENDPOINT="a12kn3h7do626x-ats.iot.eu-west-1.amazonaws.com"
-PREFIX = 'rdiricdijk'
-CLIENT_ID = PREFIX + "-ruuvi"
+ENDPOINT     = "a12kn3h7do626x-ats.iot.eu-west-1.amazonaws.com"
+PREFIX       = 'rdiricdijk'
 PATH_TO_CERT = "/home/pi/CDK-ruuvi/ruuvi-certificate.pem.crt"
 PATH_TO_KEY  = "/home/pi/CDK-ruuvi/ruuvi-private.pem.key"
 PATH_TO_ROOT = "/home/pi/CDK-ruuvi/root-CA.crt"
 
+CLIENT_ID   = PREFIX + "-ruuvi"
 TOPIC 		= PREFIX + "/ruuvi"
 TOPICRX	    = PREFIX + "/ruuvi-rx"
 
@@ -54,19 +54,19 @@ print('-------------------------------------------------------------------------
 
 def handle_data(json_in):
 	global loop, LOOPS, SEC, now, next
-	
+
 	if datetime.datetime.now() >= next:
 		print()
 		loop=loop+1
 
 		print('now : ', datetime.datetime.now().strftime('%H:%M:%S'))
 
-	
+
 		next = next + datetime.timedelta(seconds=SEC)
 		if datetime.datetime.now() >= next:
 			print('Next time allready passes, resseting next parameter.')
 			next = datetime.datetime.now() + datetime.timedelta(seconds=SEC)
-		
+
 		#print("Next: ", now)
 		json_in[1]['timestamp']=datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 		json_in[1]['timestamp2']=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -76,16 +76,16 @@ def handle_data(json_in):
 		data=json.dumps(json_in[1])
 		print(str(loop) + "/" + str(LOOPS) + ": Published: '" + data + "' to the topic: " + "'" + TOPIC + "'")
 		myAWSIoTMQTTClient.publish(TOPIC, data, 1)
-	
+
 		if loop >= LOOPS:
 			run_flag.running = False
 		print('Next: ', next.strftime('%H:%M:%S'))
-		
+
 	else:
 		print('.', end='')
-		
+
 	sys.stdout.flush()
-		
+
 # Custom MQTT message callback
 def customCallback(client, userdata, message):
     global rdiLastMessage
@@ -140,4 +140,3 @@ RuuviTagSensor.get_datas(handle_data, macs, run_flag)
 now = datetime.datetime.now()
 print()
 print (now.strftime("%Y-%m-%d %H:%M:%S") + ' End of program')
-
