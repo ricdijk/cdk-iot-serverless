@@ -39,21 +39,23 @@ The stack will automaticly delete created S3 objects:
 
 ____
 ## Ruuvi code and scheduling
-### installation
-  * The ruuvi code consists of one python script: 'rdi_ruuvi.py', stored in the 'ruuvi' directory of this repository. Store this file in a appropriate directory on the IOT device.
+### Installation
+  * The ruuvi code consists of one python script: 'rdi_ruuvi.py', stored in the 'ruuvi' directory of this repository. Store this file in a appropriate directory on the IoT device.
   * The following fields need to be configured to upload data to AWS:
-    ** ENDPOINT
-    ** PREFIX
-    ** PATH_TO_CERT
-    ** PATH_TO_KEY
+    * ENDPOINT
+    * PREFIX
+    * PATH_TO_CERT
+    * PATH_TO_KEY
   * The values can be retrieved from the 'cdk deploy' output.
-### Prerequisits 
+### Prerequisits
   * The 'ruuvitag-sensor' library  is used to read the ruuvi data (https://github.com/ttu/ruuvitag-sensor)
   * For the 'ruuvitag-sensor' library to work the 'Bleso' bluetooth library needs to be installed and pointed to by setting the enviroment variable 'RUUVI_BLE_ADAPTER="Bleson"
   * To connect to AWS the 'aws-iot-device-sdk-python' library needs to be installed
 
-### Schedulling
-  * Ruuvi code is stared with: 'python3 <path_to>rdi_ruuvi LOOPS=1 SEC=60'
+### Running and Schedulling
+  * Ruuvi code is started with: 'python3 <path_to>rdi_ruuvi LOOPS=1 SEC=60'
+    * LOOPS is the number of requests sent to Aws
+    * SEC is the time between two measurement
   * Ruuvi can be scheduelled from cron with e.g. the following cron line:
   ```
   0 * * * * export RUUVI_BLE_ADAPTER="Bleson"; python3 /home/pi/CDK-ruuvi/rdi_ruuvi.py 60 60      2>&1 >> /home/pi/<path>/ruuvi.log
