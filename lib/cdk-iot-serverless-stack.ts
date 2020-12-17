@@ -505,6 +505,7 @@ exec('aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS',
 //        console.log( keyPrivate);
         console.log('==========================================================================================================================================');
         console.log('Key and Certificate for IOT device can be retrieved:')
+        console.log('Client Id:      ' + thingId);
         console.log('Private key:    ' + fileNamePrivate);
         console.log('Certificate:    ' + 'aws iot describe-certificate --query "certificateDescription.certificatePem" --output text --certificate-id $CERTIFICATEID');
         console.log('== End ===================================================================================================================================');

@@ -19,8 +19,8 @@ This project will rollout all resources to load 'ruuvi' data to AWS S3 and adds 
  ## Overview
  ![Overview](/image/overview.png)
 ____
-#Notes
-## Certificate/Key Creation/Re-use
+# Remarks
+## Certificate/Key Creation and Re-use
 When creating the stack it will look for CSR (Certificat Creation Request) and Keys in the 'cert' directory. When found, the CSR will be send to AWS to be turned into a Certifica. This will ensure the creation of the same Certificate, so the Key/Certivicate on the IoT device can remain the same. If no CSR/Keys are found, a new CSR will be creaded and stored in the 'cert' directory for future use. This new Certificate/Key needs to be rolled out to the IoT device.
 
 ## Certificate/Key rollout to IoT device
@@ -39,13 +39,22 @@ The stack will automaticly delete created S3 objects:
 
 ____
 # Installation
+## Installation
+  * Install  and configure all Prerequisits
+  * Configue 'settings.json'
+  * Run'cdk deploy'
+  * Deploy 'ruuvi-code', client_id, endpoint, key and certificate to IoT device (information can be found in cdk output)
+  * Schedule 'rdi_ruuvi'
+  * Retrieve 'CdkIotServerlessStack.<prefix>Endpoit' from cdk output and see graph of database
+  * Note: it takes som time for data to be visibale on the graph
+
 ## Prerequisits
   * AWS Cli installed
   * AWS cdk toolkit installed
   * AWS region bootstrapped for Aws CDK (*cdk bootstrap aws://ACCOUNT-NUMBER-1/REGION-1*)
   * AWS configure for access to Environment
 
-## settings.JSON
+## settings.json
 The following parameters can be set in the file '*settings.json*'
  * accountId - Id own aws account (for use in pollicies)
  * regionName - aws region (e.g. us-east-2)
@@ -59,17 +68,30 @@ Note:
 ## output
 Installing the stack will add the following output to the cdk output:
 ```
+-- Start -------------------------------------------------------------------------------------------
+Read CSR/key from Storage.
 ----------------------------------------------------------------------------------------------------
-Deploying IoT Serverless Stack for:
-
+Info:
 Account:        xxxxxxxxxxxx
-Region:         us-east-2
-Prefix:         rdicdk
+Region:         eu-west-1
+Prefix:         xxx
 New Bucket:     true
-Thing Endpoint: xxxxxxxxxxxxxx-ats.iot.eu-west-1.amazonaws.com
-----------------------------------------------------------------------------------------------------
+Thing Endpoint: xxxxxxxxxxxx-ats.iot.eu-west-1.amazonaws.com
+==========================================================================================================================================
+Key and Certificate for IOT device can be retrieved:
+Client id:      xxxxxx
+Private key:    cert/xxxxxxxx-ruuvi-private.key
+Certificate:    aws iot describe-certificate --query "certificateDescription.certificatePem" --output text --certificate-id $CERTIFICATEID
+== End ===================================================================================================================================
+
+...
+(cdk output)
+...
+
+Outputs:
+CdkIotServerlessStack.CERTIFICATEID = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+CdkIotServerlessStack.<prefix>Endpointxxxxxxxx = https://xxxxxxxxxx.execute-api.eu-west-1.amazonaws.com/prod/
 ```
-The first 4 rows are the parameters read from the config file. The last is the endpoint to be used by the ruuvi software to publish to the iot-core topic.
 
 ___
 # Known issue
