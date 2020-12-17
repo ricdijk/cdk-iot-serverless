@@ -16,14 +16,15 @@ This project will rollout all resources to load 'ruuvi' data to AWS S3 and adds 
  * Api Gateway
  * Evets & Events-Targets
 
-## Certivicate
+## Certificate
 When creating the stack it will look for CSR (Certificat Creation Request) and Keys in the 'cert' directory. When found, the CSR will be send to AWS to be turned into a Certifica. This will ensure the creation of the same Certificate, so the Key/Certivicate on the IoT device can remain the same. If no CSR/Keys are found, a new CSR will be creaded and stored in the 'cert' directory for future use. This new Certificate/Key needs to be rolled out to the IoT device.
 
 ## Certificate/Key rollout to IoT device
 After stack createion the following documents should be rolled out to the IoT device:
   * Private key: The PEM file can be found in the 'cert' directory
   * Certificate: The certificate PEM file can be retrieved from AWS with the following command:
-  ```aws iot describe-certificate --query "certificateDescription.certificatePem" --output text --certificate-id *${CERTIFICATEID}*
+  ```
+  aws iot describe-certificate --query "certificateDescription.certificatePem" --output text --certificate-id *${CERTIFICATEID}*
   ```
 Path to Private key, Certificate Id and command to retrieve Certificate PEM file will be output by the 'cdk deploy' command.
 
