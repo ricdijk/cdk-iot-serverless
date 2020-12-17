@@ -97,7 +97,8 @@ function rdi_cleanupS3(result)
 					if (dat.Errors.length) console.log('RDI: !!!Error deleting objects: ', dat.Errors);
 					else {
 						var start=lookupKey.indexOf(dat.Deleted[0].Key);
-						console.log('RDI: deleteObjects (' + start + '): Success' );
+						var startNr = Math.floor(start/bucketSize)*bucketSize; //We only get 1 id and dont know which id we get so floor to bucketSize
+						console.log('RDI: deleteObjects (' + startNr + ' to ' + (startNr+bucketSize) + '): Success' );
 					}
 				}
 		});

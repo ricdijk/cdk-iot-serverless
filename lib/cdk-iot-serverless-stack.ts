@@ -18,6 +18,7 @@ var deleveryStreamName = settings.prefix + 'DeliveryStreamRuuviS3'
 var websiteHandlerName = settings.prefix + '-websiteHandler'
 var cleanupHandlerName = settings.prefix + '-cleanupHandler'
 var cleanupScheduleName= settings.prefix + '-cleanupSchedule'
+var lifecycleRuleName  = settings.prefix + '-lifecycleRule'
 
 // Location for the certificate/csr stuff
 var fileNameCsr     = 'cert/' + thingId  + '-csr.csr';
@@ -65,8 +66,30 @@ if (settings.newBucket)
   rdiBucket = new s3.Bucket(this, settings.prefix+'Bucket', {
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      bucketName:  bucketName
+      bucketName:  bucketName,
+      lifecycleRules: [ //Remove athena data after 2 days
+        {
+          expiration:                           cdk.Duration.days(2),
+          abortIncompleteMultipartUploadAfter:  cdk.Duration.days(1),
+          noncurrentVersionExpiration:          cdk.Duration.days(1),
+          enabled:                              true,
+          id:                                   lifecycleRuleName,
+          prefix:                               'athena/',
+        /*  transitions: [ //would also be nice to use different storege classes
+                {
+                    storageClass: s3.StorageClass.INFREQUENT_ACCESS,
+                    transitionAfter: cdk.Duration.days(30),
+                },
+                {
+                    storageClass: s3.StorageClass.GLACIER,
+                    transitionAfter: cdk.Duration.days(90),
+                },
+          ]*/
+        }
+      ]
   });
+  //create lifecycle on bucket
+
 }
 else { //use existing bucet
   rdiBucket = s3.Bucket.fromBucketAttributes(this, settings.preFix+'ImportedBucket', {

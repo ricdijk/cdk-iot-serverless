@@ -2,6 +2,5 @@
   "accountId"          : "784629880779",
   "regionName"         : "eu-west-1",
   "prefix"             : "rdiricdijk",
-  "newBucket"          : true,
-  "newSecret"          : false
+  "newBucket"          : true
 }
