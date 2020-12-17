@@ -16,10 +16,11 @@ This project will rollout all resources to load 'ruuvi' data to AWS S3 and adds 
  * Api Gateway
  * Evets & Events-Targets
 
-----
-****
+ ## Overview
+ ![Overview](/image/overview.png)
 ____
-## Certificate
+#Notes
+## Certificate/Key Creation/Re-use
 When creating the stack it will look for CSR (Certificat Creation Request) and Keys in the 'cert' directory. When found, the CSR will be send to AWS to be turned into a Certifica. This will ensure the creation of the same Certificate, so the Key/Certivicate on the IoT device can remain the same. If no CSR/Keys are found, a new CSR will be creaded and stored in the 'cert' directory for future use. This new Certificate/Key needs to be rolled out to the IoT device.
 
 ## Certificate/Key rollout to IoT device
@@ -38,7 +39,6 @@ The stack will automaticly delete created S3 objects:
 
 ____
 # Installation
-
 ## Prerequisits
   * AWS Cli installed
   * AWS cdk toolkit installed
@@ -70,8 +70,6 @@ Thing Endpoint: xxxxxxxxxxxxxx-ats.iot.eu-west-1.amazonaws.com
 ----------------------------------------------------------------------------------------------------
 ```
 The first 4 rows are the parameters read from the config file. The last is the endpoint to be used by the ruuvi software to publish to the iot-core topic.
-  ## Overview
-  ![Overview](/image/overview.png)
 
 ___
 # Known issue
