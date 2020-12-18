@@ -433,6 +433,38 @@ const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate'
     lambdaPolicyAthena.addActions("glue:GetTable")
     lambdaPolicyAthena.addResources("*")
 
+    //permissions for lambda on SES (sent email)
+    const lambdaPolicySes = new PolicyStatement()
+      lambdaPolicySes.addActions("ses:SendEmail");
+      lambdaPolicySes.addActions("ses:SendRawEmail");
+      lambdaPolicySes.addActions("ses:SendRawEmail");
+      lambdaPolicySes.addResources("*")
+
+      //verify email adresses
+    if (settings.verifyEmail)
+    {
+      const awssdk = require('aws-sdk')
+      const ses = new awssdk.SES()
+
+      var params = { EmailAddress: settings.fromEmail };
+      var response = ses.verifyEmailIdentity(params, function(err:any, data:any) {
+          if (err) {console.log('Error verifing: '+settings.fromEmail); console.log(err, err.stack); }
+          else      console.log('Send verify email to: '+settings.fromEmail, data.ResponseMetadata);           // successful response
+        })
+
+      if (settings.fromEmail !== settings.toEmail)
+      {
+        setTimeout(function(){
+          var params = { EmailAddress: settings.toEmail };
+          var response = ses.verifyEmailIdentity(params, function(err:any, data:any) {
+              if (err) {console.log('Error verifing: '+settings.toEmail); console.log(err, err.stack); }
+              else      console.log('Send verify email to: '+settings.toEmail, data.ResponseMetadata);           // successful response
+            })
+        }, 1000) //one verification/second
+      }
+    }
+    else console.log('No email verifications')
+
 
     //Lambda itself
     const rvdWebsite = new lambda.Function(this, settings.prefix+'WebsiteHandler', {
@@ -462,11 +494,16 @@ const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate'
       handler: 			 'rdiWebsite.cleanup_handler',   // file, function
       functionName:	 cleanupHandlerName,
       timeout:			 cdk.Duration.seconds(300), //AThena is slow, so increased the timeouit to 300 secs
-      initialPolicy: [lambdaPolicyS3, lambdaPolicyAthena ],
+      initialPolicy: [lambdaPolicyS3, lambdaPolicyAthena, lambdaPolicySes ],
       environment: {
         databaseName: 	databaseName,
         tableName: 		  tableName,
-        bucketName:     bucketName
+        bucketName:     bucketName,
+        fromRegion:     settings.region,
+        fromEmail:      settings.fromEmail,
+        toEmail:        settings.toEmail,
+        regionName:     settings.regionName,
+        clientId:       thingId,
       }
     });
 

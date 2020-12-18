@@ -1,9 +1,14 @@
 const aws = require("aws-sdk");
 const AthenaExpress = require("athena-express");
 const athenaExpressConfig = { aws, s3: 's3://' + process.env.bucketName + '/athena/' };
-console.log('RDI: BUCKET', 's3://' + process.env.bucketName + '/athena/')
 const athenaExpress = new AthenaExpress(athenaExpressConfig);
+const ses = new aws.SES({ region: process.env.regionName });
 
+
+var SesOutput = '';
+SesOutput += "Cleunup ruuvi Data";
+SesOutput += "\nStartTime: " + new Date();
+SesOutput += "\n";
 
 //********************************************************************************************************************
 // Website handler
@@ -14,8 +19,8 @@ exports.website_handler = async (event, context, callback) => {
 					  where timestamp2 > now() - interval '2' day
 					  order by timestamp2;`;
 //	const sqlQuery = "SELECT timestamp2, temperature, humidity, pressure, acceleration, acceleration_x, acceleration_y, acceleration_z, tx_power, movement_counter, measurement_sequence_number FROM " + table + " order by timestamp2;;
-	console.log('RDI: Table: ', table);
-	console.log('RDI: SQL: ', sqlQuery);
+	rdiLog('RDI: Table: ', table);
+	rdiLog('RDI: SQL: ', sqlQuery);
 
 	try {
 		let results = await athenaExpress.query(sqlQuery);
@@ -26,32 +31,76 @@ exports.website_handler = async (event, context, callback) => {
 };
 
 //********************************************************************************************************************
+// Logging + store text for email
+function rdiLog(a,b,c,d,e,f)
+{
+	var temp='';
+	if (a) temp += a;
+	if (b) temp += b;
+	if (c) temp += c;
+	if (d) temp += d;
+	if (e) temp += e;
+	if (f) temp += f;
+	console.log(temp);
+	SesOutput += '\n' + temp;
+}
+//********************************************************************************************************************
+// Sent SentEmail
+function rdiSendEmail(subject)
+{
+	if (process.env.toEmail && process.env.toEmail.length>0)
+	{
+		var params = {
+	    Destination: {
+	      ToAddresses: [process.env.toEmail],
+	    },
+	    Message: {
+	      Body: {
+	        Text: { Data: SesOutput },
+	      },
+
+	      Subject: { Data: subject },
+	    },
+	    Source: process.env.fromEmail,
+	  };
+    return ses.sendEmail(params).promise()
+	}
+}
+
+//********************************************************************************************************************
 // Cleanup handler
 exports.cleanup_handler = async (event, context, callback) => {
-	var table = '"' + process.env.databaseName + '"."' + process.env.tableName +'"';
+	const table  = '"' + process.env.databaseName + '"."' + process.env.tableName +'"';
 	//const sqlQuery = `delete FROM ` + table + `where timestamp2 < now() - interval '15' day`;
 	// Athena cant do deletes
 	// so selecting all paths and then delete
 	const sqlQuery  = `Select "$path"  as fullFileName   FROM ` + table + ` where timestamp2 < now() - interval '7' day`;
 	const sqlQuery2 = `Select count(*) as aantal         FROM ` + table + ` where timestamp2 < now() - interval '7' day`;
-	console.log('RDI: Cleanup data');
-	console.log('RDI: Table: ', table);
-	console.log('RDI: SQL:   ', sqlQuery);
+	rdiLog('RDI: Cleanup data');
+	rdiLog('RDI: Region:        ', process.env.regionName);
+	rdiLog('RDI: From:          ', process.env.fromEmail);
+	rdiLog('RDI: To:            ', process.env.toEmail);
+	rdiLog('RDI: Athena Buchet: ', 's3://' + process.env.bucketName + '/athena/')
+	rdiLog('RDI: Table:         ', table);
+	rdiLog('RDI: SQL:           ', sqlQuery);
+	rdiLog('');
 
 	try {
 		var results = await athenaExpress.query(sqlQuery);
-		console.log('RDI: Found: ' + results.Items.length + ' record(s) for cleaning.');
+		rdiLog('RDI: Found: ' + results.Items.length + ' record(s) for cleaning.');
 		rdi_cleanupS3(results)
 
 		var results2 = await athenaExpress.query(sqlQuery2);
-		console.log('');
-		console.log('RDI: Selected records after cleanup: ' + results2.Items[0].aantal )
-		console.log('RDI: Deleted: ' + (results.Items.length - results2.Items[0].aantal) + ' record(s)')
-		console.log('RDI: Note: Delete might still be in progress.')
+		rdiLog('');
+		rdiLog('RDI: Selected records after cleanup: ' + results2.Items[0].aantal )
+		rdiLog('RDI: Deleted: ' + (results.Items.length - results2.Items[0].aantal) + ' record(s)')
+		rdiLog('RDI: Note: Delete might still be in progress.')
 
-		console.log('RDI: The end');
+		rdiSendEmail(process.env.clientId + ' cleanup: Succes')
+
+		rdiLog('RDI: The end');
 	} catch (error) {
-		console.log('RDI: !!!Error in Cleanup: ' + error);
+		rdiLog('RDI: !!!Error in Cleanup: ' + error);
 	}
 };
 
@@ -70,7 +119,7 @@ function rdi_cleanupS3(result)
 		var loopEnd=Math.min(data.length, bucketStart+bucketSize)
 //		var loopEnd=Math.min(loopEnd,bucketStart+5)//testing
 		var displayText = bucketStart+' to ' + (loopEnd-1);
-		console.log('RDI: Deleting records: ' + displayText);
+		rdiLog('RDI: Deleting records: ' + displayText);
 
 		var deleteFileList=[];
 	  for (var i=bucketStart; i<loopEnd; i++)
@@ -92,13 +141,21 @@ function rdi_cleanupS3(result)
 		// Choose not to use single file deletion, because the number of files would result in a lot of calls
 		// And is is a non critical background proces (doesm't matter if the error gets logged on a later moment)
 	  s3.deleteObjects(deleteParam, function(err, dat) {
-		    if (err) console.log(err, err.stack);
+				const subj = process.env.clientId + ' cleanup: ';
+			  if (err)
+				{
+					rdiLog(err, err.stack);
+					rdiSendEmail(subj + '!!!!Error')
+				}
 		    else {
-					if (dat.Errors.length) console.log('RDI: !!!Error deleting objects: ', dat.Errors);
+					if (dat.Errors.length) {
+						rdiLog('RDI: !!!Error deleting objects: ', dat.Errors);
+						rdiSendEmail(subj + '!!!Error')
+					}
 					else {
 						var start=lookupKey.indexOf(dat.Deleted[0].Key);
 						var startNr = Math.floor(start/bucketSize)*bucketSize; //We only get 1 id and dont know which id we get so floor to bucketSize
-						console.log('RDI: deleteObjects (' + startNr + ' to ' + (startNr+bucketSize) + '): Success' );
+						rdiLog('RDI: deleteObjects (' + startNr + ' to ' + (startNr+bucketSize) + '): Success' );
 					}
 				}
 		});
