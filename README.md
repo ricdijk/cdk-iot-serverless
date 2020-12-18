@@ -52,11 +52,11 @@ ____
   * For the 'ruuvitag-sensor' library to work the 'Bleso' bluetooth library needs to be installed and pointed to by setting the enviroment variable 'RUUVI_BLE_ADAPTER="Bleson"
   * To connect to AWS the 'aws-iot-device-sdk-python' library needs to be installed
 
-### Running and Schedulling
+### Running and Scheduling
   * Ruuvi code is started with: 'python3 <path_to>rdi_ruuvi LOOPS=1 SEC=60'
     * LOOPS is the number of requests sent to Aws
     * SEC is the time between two measurement
-  * Ruuvi can be scheduelled from cron with e.g. the following cron line:
+  * Ruuvi can be schedueled from cron with e.g. the following cron line:
   ```
   0 * * * * export RUUVI_BLE_ADAPTER="Bleson"; python3 /home/pi/CDK-ruuvi/rdi_ruuvi.py 60 60      2>&1 >> /home/pi/<path>/ruuvi.log
   ```
