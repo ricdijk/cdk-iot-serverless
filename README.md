@@ -87,10 +87,10 @@ CdkIotServerlessStack.<prefix>Endpointxxxxxxxx = https://xxxxxxxxxx.execute-api.
 ____
 # Certificate/Key
 ## Creation and Re-use
-When creating the stack it will look for CSR (Certificat Creation Request) and Keys in the 'cert' directory. When found, the CSR will be send to AWS to be turned into a Certifica. This will ensure the use of the same Certificate after new rollout (e.g. changes), so the Key/Certivicate on the IoT device can remain the same.\
+When creating the stack it will look for CSR (Certificat Creation Request, not the same as the certificate) and Keys in the 'cert' directory. When found, the CSR will be send to AWS to be turned into a Certifica. This will ensure the use of the same Certificate after new rollout (e.g. changes), so the Key/Certivicate on the IoT device can remain the same.\
 If no CSR/Keys are found, a new CSR will be creaded and stored in the 'cert' directory for future use.\
 \
-This new Certificate/Key needs to be rolled out to the IoT device.
+!The new Certificate/Key needs to be rolled out to the IoT device.
 
 ## Rollout to IoT device
 After stack creation the following documents should be rolled out to the IoT device:
@@ -103,6 +103,7 @@ Path to Private key, Certificate Id and command to retrieve Certificate PEM file
 
 ____
 ## Ruuvi code and scheduling
+The ruuvy software was developped for and on a Rasberri pi.
 ### Installation
   * The ruuvi code consists of one python script: 'rdi_ruuvi.py', stored in the 'ruuvi' directory of this repository. Store this file in a appropriate directory on the IoT device.
   * The following fields need to be configured to upload data to AWS:
@@ -127,8 +128,10 @@ ____
 ___
 # Delete policy
 The stack will automaticly delete created S3 objects:
- * Athena objects with an S3 policy
- * Ruuvi json objects, with a daily scheduled Lambda function
+ * Athena objects with be removed after 2 days with an S3 policy
+ * Ruuvi json objects will be removed after 7 days with a daily scheduled Lambda function
+
+Not: different methods since it is a test project.
 
 ___
 # Known issue
@@ -137,6 +140,6 @@ ___
        * *Cannot delete. Thing rdicdk-ruuvi is still attached to one or more principals*
    * Resolution:
        * Before *'cdk destoy'*
-       * Goto AWS '*Concole->Iot-Core->secure->policy*', select '*\<prefix\>policy*' and '*action->deleted*'
-       * Goto AWS '*Concole->Iot-Core->secure->thing*', select '*\<prefix\>-thing*' and '*action->deleted*'
+       * Goto AWS '*Console->Iot-Core->secure->policy*', select '*\<prefix\>policy*' and '*action->deleted*'
+       * Goto AWS '*Console->Iot-Core->secure->thing*', select '*\<prefix\>-thing*' and '*action->deleted*'
        * Goto '*AWD console->S3*', select bucket '*\<prefix\>-bucket*', click '*empty*', type '*permanently delete*' and click '*Empty*'
