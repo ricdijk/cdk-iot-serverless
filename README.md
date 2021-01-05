@@ -28,8 +28,8 @@ ____
   * Run'cdk deploy'
   * Deploy 'ruuvi-code', client_id, endpoint, key and certificate to IoT device (information can be found in cdk output)
   * Schedule 'rdi_ruuvi'
-  * Retrieve 'CdkIotServerlessStack.<prefix>Endpoit' from cdk output and see graph of database
-  * Note: it takes som time for data to be visibale on the graph
+  * Retrieve 'CdkIotServerlessStack.<prefix>Endpoit' from cdk output and see chart of database
+  * Note: it takes som time for data to be visibale on the chart
 
 ## Prerequisits
   * AWS Cli installed
@@ -43,6 +43,10 @@ The following parameters can be set in the file '*settings.json*'
  * regionName - aws region (e.g. us-east-2)
  * prefix - Prefix to be used on all objects (should be valid aws prefix)
  * newBucket - Use existing bucket of create a new one tru or false
+ * fromEmail - Emails will be sent from this address (needs to be validated)
+ * toEmail - Emails will be sent to this address (needs to be validated)
+ * verifyEmail - Start validation proces for email addresses (note: no check is made if allready validated, if set to true, email addresses always need to be validated)
+}
 
 Note:
  * If 'account' or 'region' are changed, endpoint in ruuvi code needs to be changed in 'rdi_ruuvi.py'
@@ -54,6 +58,7 @@ Installing the stack will add the following output to the cdk output:
 ```
 -- Start -------------------------------------------------------------------------------------------
 Read CSR/key from Storage.
+Send verify email to: xxx@xxx.xx { RequestId: 'xxxx-xx-xxxxx-xx' }
 ----------------------------------------------------------------------------------------------------
 Info:
 Account:        xxxxxxxxxxxx
@@ -69,7 +74,9 @@ Certificate:    aws iot describe-certificate --query "certificateDescription.cer
 == End ===================================================================================================================================
 
 ...
-(cdk output)
+...
+(cdk output - might be long)
+...
 ...
 
 Outputs:
@@ -80,8 +87,10 @@ CdkIotServerlessStack.<prefix>Endpointxxxxxxxx = https://xxxxxxxxxx.execute-api.
 ____
 # Certificate/Key
 ## Creation and Re-use
-When creating the stack it will look for CSR (Certificat Creation Request) and Keys in the 'cert' directory. When found, the CSR will be send to AWS to be turned into a Certifica. This will ensure the use of the same Certificate after new rollout (e.g. changes), so the Key/Certivicate on the IoT device can remain the same.
-If no CSR/Keys are found, a new CSR will be creaded and stored in the 'cert' directory for future use. This new Certificate/Key needs to be rolled out to the IoT device.
+When creating the stack it will look for CSR (Certificat Creation Request) and Keys in the 'cert' directory. When found, the CSR will be send to AWS to be turned into a Certifica. This will ensure the use of the same Certificate after new rollout (e.g. changes), so the Key/Certivicate on the IoT device can remain the same.\
+If no CSR/Keys are found, a new CSR will be creaded and stored in the 'cert' directory for future use.\
+\
+This new Certificate/Key needs to be rolled out to the IoT device.
 
 ## Rollout to IoT device
 After stack creation the following documents should be rolled out to the IoT device:
