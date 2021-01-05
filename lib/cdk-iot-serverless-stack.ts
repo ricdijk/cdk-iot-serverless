@@ -1,10 +1,17 @@
-// Environment
+//--------------------------------------------------------------------------------------------------------------------
+// stack for AWS CDK ruuvi serverless
+//
+// Author: Richard van Dijk (richard.vandijk@futurefacts.nl)
+// Date:   nov/Jan 2021
+//--------------------------------------------------------------------------------------------------------------------
+
+// read Environment vars
 const settings = require('../settings.json') ;;
 
-// region and account for use in
+// region and account for use in other vars
 var arnEnv             = settings.regionName + ":" + settings.accountId;
 
-//All used names declared as global vars (so the same when used multiple times)
+// All used names declared as global vars (so the same when used multiple times)
 var thingId            = settings.prefix + '-ruuvi'
 var bucketName         = settings.prefix + '-bucket'
 var policyName         = settings.prefix + '-policy'
@@ -26,7 +33,7 @@ var fileNamePublic  = 'cert/' + thingId  + '-public.key';
 var fileNamePrivate = 'cert/' + thingId  + '-private.key';
 
 
-//imports modules
+// imports modules
 import * as cdk                from '@aws-cdk/core';
 import * as lambda             from '@aws-cdk/aws-lambda';
 import * as s3                 from '@aws-cdk/aws-s3';
@@ -46,6 +53,7 @@ import { Construct }           from 'constructs';
 // Start of stack
 //====================================================================================================================
 export class CdkStack extends cdk.Stack {
+  //public to output cerificateId
   public readonly rdiCertificateId: cdk.CfnOutput;
 
   //constructor
@@ -61,13 +69,13 @@ export class CdkStack extends cdk.Stack {
 //-------------- S3 creation/retrieving depending on setting ---------------
 var rdiBucket;
 if (settings.newBucket)
-{
+{ // created
     // create S3 bucket
   rdiBucket = new s3.Bucket(this, settings.prefix+'Bucket', {
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       bucketName:  bucketName,
-      lifecycleRules: [ //Remove athena data after 2 days
+      lifecycleRules: [ //Remove athena data after 2 days; ruuvi data will be deleted with lambda function
         {
           expiration:                           cdk.Duration.days(2),
           abortIncompleteMultipartUploadAfter:  cdk.Duration.days(1),
@@ -88,9 +96,7 @@ if (settings.newBucket)
         }
       ]
   });
-  //create lifecycle on bucket
-
-}
+} //reuse
 else { //use existing bucet
   rdiBucket = s3.Bucket.fromBucketAttributes(this, settings.preFix+'ImportedBucket', {
       bucketArn: 'arn:aws:s3:::'+bucketName
