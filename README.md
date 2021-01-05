@@ -131,7 +131,7 @@ The stack will automaticly delete created S3 objects:
  * Athena objects with be removed after 2 days with an S3 policy
  * Ruuvi json objects will be removed after 7 days with a daily scheduled Lambda function
 
-Not: different methods since it is a test project.
+Note: different methods since it is a test project.
 
 ___
 # Known issue

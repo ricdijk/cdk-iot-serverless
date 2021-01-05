@@ -544,8 +544,6 @@ exec('aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS',
         console.log('Prefix:         ' + settings.prefix);
         console.log('New Bucket:     ' + settings.newBucket);
         console.log('Thing Endpoint: ' + stdout.slice(0,-1));
-//        console.log('Private Key (to be used with Ruuvi):\n');
-//        console.log( keyPrivate);
         console.log('==========================================================================================================================================');
         console.log('Key and Certificate for IOT device can be retrieved:')
         console.log('Client Id:      ' + thingId);
