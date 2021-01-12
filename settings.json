@@ -5,5 +5,5 @@
   "newBucket"          : true,
   "fromEmail"          : "richard.vandijk@futurefacts.nl",
   "toEmail"            : "richard.vandijk@futurefacts.nl",
-  "verifyEmail"        : true
+  "verifyEmail"        : false
 }

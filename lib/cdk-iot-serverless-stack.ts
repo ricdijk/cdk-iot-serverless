@@ -12,25 +12,30 @@ const settings = require('../settings.json') ;;
 var arnEnv             = settings.regionName + ":" + settings.accountId;
 
 // All used names declared as global vars (so the same when used multiple times)
-var thingId            = settings.prefix + '-ruuvi'
-var bucketName         = settings.prefix + '-bucket'
-var policyName         = settings.prefix + '-policy'
-var databaseName       = settings.prefix + '-database'
-var tableName          = 'generic'
-var firehoseName       = settings.prefix + 'FirehoseRole'
-var streamName         = settings.prefix + 'DeliveryStreamRuuviS3'
-var topicRuleName      = settings.prefix + 'rule'
-var topicRuleRoleName  = settings.prefix + 'TopicRuleRole'
-var deleveryStreamName = settings.prefix + 'DeliveryStreamRuuviS3'
-var websiteHandlerName = settings.prefix + '-websiteHandler'
-var cleanupHandlerName = settings.prefix + '-cleanupHandler'
-var cleanupScheduleName= settings.prefix + '-cleanupSchedule'
-var lifecycleRuleName  = settings.prefix + '-lifecycleRule'
+const thingId            = settings.prefix + '-ruuvi'
+const bucketName         = settings.prefix + '-bucket'
+const policyName         = settings.prefix + '-policy'
+const databaseName       = settings.prefix + '-database'
+const tableName          = 'generic'
+const firehoseName       = settings.prefix + 'FirehoseRole'
+const streamName         = settings.prefix + 'DeliveryStreamRuuviS3'
+const topicRuleName      = settings.prefix + 'rule'
+const topicRuleRoleName  = settings.prefix + 'TopicRuleRole'
+const deleveryStreamName = settings.prefix + 'DeliveryStreamRuuviS3'
+const websiteHandlerName = settings.prefix + '-websiteHandler'
+const cleanupHandlerName = settings.prefix + '-cleanupHandler'
+const cleanupScheduleName= settings.prefix + '-cleanupSchedule'
+const lifecycleRuleName  = settings.prefix + '-lifecycleRule'
+
+const translateServiceHandlerName = settings.prefix + '-translationService'
+const apiKeyName                  = settings.prefix + "-ApiKeyName";
+const apiUsagePlanName            = settings.prefix + "-rapiUsagePlan";
+
 
 // Location for the certificate/csr stuff
-var fileNameCsr     = 'cert/' + thingId  + '-csr.csr';
-var fileNamePublic  = 'cert/' + thingId  + '-public.key';
-var fileNamePrivate = 'cert/' + thingId  + '-private.key';
+const fileNameCsr     = 'cert/' + thingId  + '-csr.csr';
+const fileNamePublic  = 'cert/' + thingId  + '-public.key';
+const fileNamePrivate = 'cert/' + thingId  + '-private.key';
 
 
 // imports modules
@@ -472,6 +477,55 @@ const rdiCerificate = new iot.CfnCertificate(this, settings.prefix+'Certificate'
     else console.log('No email verifications')
 
 
+//*******************************************************************************************************************
+//*******************************************************************************************************************
+//Translation Service
+  //permissions for lambda on SES (sent email)
+  const lambdaTranslation = new PolicyStatement()
+    lambdaTranslation.addActions("translate:*");
+    lambdaTranslation.addActions("logs:CreateLogGroup");
+    lambdaTranslation.addActions("logs:CreateLogGroup");
+    lambdaTranslation.addActions("logs:PutLogEvents");
+    lambdaTranslation.addActions("cloudwatch:GetMetricStatistics");
+    lambdaTranslation.addActions("cloudwatch:ListMetrics");
+    lambdaTranslation.addActions("comprehend:DetectDominantLanguage");
+    lambdaTranslation.addResources("*")
+
+    //Lambda itself
+    const rvdTranslateService = new lambda.Function(this, settings.prefix+'TranslateService', {
+      runtime: 			 lambda.Runtime.NODEJS_12_X,    // execution environment
+      code: 			   lambda.Code.fromAsset('lambda/translate'),  // code loaded from "lambda" directory
+      handler: 			 'richd_translateService.handler',   // file, function
+      functionName:	 translateServiceHandlerName,
+      timeout:			 cdk.Duration.seconds(5), //AThena is slow, so increased the timeouit to 30 secs
+      initialPolicy: [lambdaTranslation ]
+    });
+
+
+    const apiKey = new apigw.ApiKey(this, settings.prefix+'-TranslateServiceApiKey', {
+                apiKeyName,
+                description: `APIKey used to use Translate service`,
+                enabled: true
+            })
+
+    //const api = new apigw.RestApi(this, settings.prefix+'EndpointTranslateService', { });
+    const api = new apigw.RestApi(this, settings.prefix+'TranslateServiceAPI', {
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigw.Cors.ALL_ORIGINS
+      }
+     });
+    const integration = new apigw.LambdaIntegration(rvdTranslateService);
+    const method = api.root.addMethod('GET', integration, { apiKeyRequired: true });
+
+    const plan = api.addUsagePlan('UsagePlan', {
+      name: apiUsagePlanName,
+      apiKey: apiKey,
+      apiStages: [{api: api, stage: api.deploymentStage}],
+      throttle: {burstLimit: 10, rateLimit: 10}, quota: {limit: 1000, period: apigw.Period.MONTH}, //10 per second steady and burst; 1000 max per month
+    });
+
+//*******************************************************************************************************************
+//*******************************************************************************************************************
     //Lambda itself
     const rvdWebsite = new lambda.Function(this, settings.prefix+'WebsiteHandler', {
       runtime: 			 lambda.Runtime.NODEJS_12_X,    // execution environment
@@ -549,6 +603,10 @@ exec('aws iot describe-endpoint --output text --endpoint-type iot:Data-ATS',
         console.log('Client Id:      ' + thingId);
         console.log('Private key:    ' + fileNamePrivate);
         console.log('Certificate:    ' + 'aws iot describe-certificate --query "certificateDescription.certificatePem" --output text --certificate-id $CERTIFICATEID');
+        console.log('==========================================================================================================================================');
+        console.log('API key name:   ' + apiKeyName);
+        console.log('API key id:     ' + apiKey.keyId);
+        console.log('Retrieve key    ' + 'aws apigateway get-api-keys --include-values --name-query ' + apiKeyName);
         console.log('== End ===================================================================================================================================');
         console.log('')
         if (error !== null) {
